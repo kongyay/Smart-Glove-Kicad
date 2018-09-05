@@ -1,5 +1,4 @@
-char receivedChar;
-bool newData = false;
+int data;
 
 void setup() {
     Serial.begin(115200);  // open serial connection to USB Serial port (connected to your computer)
@@ -11,15 +10,16 @@ void setup() {
     }
  
 void loop() {
-    Serial.println(analogRead(18));
+    //Serial.println(analogRead(18));
+    data = analogRead(18);
+    Serial.print("FLEX sends ... ");
+    Serial.println(data);
+    Serial1.print(data);
+
+    if (Serial1.available() > 0) {
+       Serial.print("MPU sends ... ");
+       Serial.println((char)Serial1.read());
+    }
+ 
     delay(100);
 } 
-
-
-void showNewData() {
- if (newData == true) {
- Serial.print("This just in ... ");
- Serial.println(receivedChar);
- newData = false;
- }
-}
