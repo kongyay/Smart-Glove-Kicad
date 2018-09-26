@@ -14,7 +14,7 @@ void loop() {
     data = analogRead(18);
     Serial.print("FLEX sends ... ");
     Serial.println(data);
-    Serial1.print(data);
+    Serial1.println(data);
 
     if (Serial1.available() > 0) {
        Serial.print("MPU sends ... ");
@@ -22,4 +22,4 @@ void loop() {
     }
  
     delay(100);
-} 
+}    
