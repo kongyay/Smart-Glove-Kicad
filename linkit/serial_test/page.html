@@ -1,0 +1,14 @@
+<script>
+ function led(state) {
+   if (state==1) {
+     location.href = '?led=' + state;
+   } else if (state==0) {
+     location.href = '?led=' + state;
+   }
+ }
+</script>
+
+<div>change LED state :
+ <input type="button" value="On"  onclick="led(1)">
+ <input type="button" value="Off" onclick="led(0)">
+</div>

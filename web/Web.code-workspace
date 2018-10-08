@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "client"
+		},
+		{
+			"path": "D:\\Work\\Glove2Gesture\\python\\flask"
+		},
+		{
+			"path": "D:\\Work\\Glove2Gesture\\python\\i2c"
+		},
+		{
+			"path": "server"
+		}
+	],
+	"settings": {}
+}

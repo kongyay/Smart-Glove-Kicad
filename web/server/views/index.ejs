@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <body>
+    <h1><%= title %></h1>
+    <p>Welcome to <%= title %></p>
+  </body>
+</html>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  var socket = io.connect('http://localhost:3000/');
+  //ask for news
+  socket.emit('getNews');
+
+  socket.on('live_data', function (data) {
+      console.log(data);
+  });
+</script>

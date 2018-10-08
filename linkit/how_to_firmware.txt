@@ -1,0 +1,104 @@
+Install prerequisite packages to build the firmware:
+sudo apt-get install git g++ libncurses5-dev subversion libssl-dev gawk libxml-parser-perl unzip wget
+1-1. Make working directory
+
+mkdir Build_Path_Some_Where
+cd Build_Path_Some_Where
+Download the OpenWrt CC source codes:
+git clone git://git.archive.openwrt.org/15.05/openwrt.git
+Prepare the default configuration file for feeds:
+cd openwrt
+cp feeds.conf.default feeds.conf
+Add the LinkIt Smart 7688 development board's feed:
+echo 'src-git linkit https://github.com/MediaTek-Labs/linkit-smart-7688-feed.git' >> feeds.conf
+4-1. Add the node.js packages feed:
+
+echo 'src-git node https://github.com/nxhack/openwrt-node-packages.git;for-15.05' >> feeds.conf
+Update the feed information for all available packages to build the firmware:
+./scripts/feeds update
+5-1. Change the packages installed as default:
+
+wget https://gist.githubusercontent.com/nxhack/7ced4d866a59ebc72737589b49a220f8/raw/1bebfe9f6091f55a5856bc4af00da456a4995b09/mtk-linkit.patch
+patch -p1 < mtk-linkit.patch
+
+5-2. Copy kernel objects for support kernel 3.18.45:
+see : MediaTek-Labs/linkit-smart-7688-feed#37
+
+cp ./feeds/linkit/mtk-sdk-wifi/wifi_binary/mt_wifi.ko_3.18.44 ./feeds/linkit/mtk-sdk-wifi/wifi_binary/mt_wifi.ko_3.18.45 (CHANGE No. to NEWEST VERSION)
+cp ./feeds/linkit/mtk-sdk-wifi/wifi_binary/mt_wifi.ko_3.18.44_all ./feeds/linkit/mtk-sdk-wifi/wifi_binary/mt_wifi.ko_3.18.45_all  (CHANGE No. to NEWEST VERSION)
+5-3. Fix build error of depend on node.js version:
+
+wget https://gist.githubusercontent.com/nxhack/4357d51918ba8f3cb5cc00080ad0815c/raw/e96758224ade8cb224523aedf5ea3249a6a59425/MRAA.patch
+patch -p1 < MRAA.patch
+5-4. Prepare for building node.js(patch to toolchain)
+
+patch -p1 < ./feeds/node/for_building_latest_node.patch
+5-5. FIX: git submodule command not work properly.
+
+wget https://gist.githubusercontent.com/nxhack/78fa1df0a1224a168191dd1ab5b3336e/raw/94b6ded945c61809103e529ddbc41cb4cb757792/fix-git-submodule.patch
+patch -p1 < fix-git-submodule.patch
+
+5-6. FIX: fix git core version
+wget https://gitlab.labs.nic.cz/turris/openwrt/uploads/0673001b14ab1d1769604ff0ce7d8781/git-version-check-fix.patch
+patch -p1 < git-version-check-fix.patch
+
+5.7 FIX: automake
+manual load https://git.openwrt.org/?p=openwrt/openwrt.git;a=patch;h=92c80f38cff3c20388f9ac13d5196f2745aeaf77
+5.7 FIX: rsa
+manual load https://git.openwrt.org/?p=openwrt/openwrt.git;a=patch;h=70b104f98c0657323b28fce140b73a94bf3eb756
+
+5.8 Edit "tools/cmake/Makefile" and change "PKG_VERSION:=3.9.1" and change related lines, do not forget to delete "tools/cmake/patches/110-..."
+
+#
+# Copyright (C) 2006-2014 OpenWrt.org
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=cmake
+PKG_VERSION:=3.9.1
+
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=http://www.cmake.org/files/v3.9/
+PKG_MD5SUM:=00f43c6a56d4903436317c14f9ca7f37
+
+HOST_BUILD_PARALLEL:=1
+HOST_CONFIGURE_PARALLEL:=1
+
+include $(INCLUDE_DIR)/host-build.mk
+
+HOST_CONFIGURE_VARS :=
+
+HOST_CONFIGURE_ARGS := \
+	--prefix=$(STAGING_DIR_HOST) \
+	$(if $(MAKE_JOBSERVER),--parallel="$(MAKE_JOBSERVER)")
+
+$(eval $(call HostBuild))
+
+Install all packages:
+./scripts/feeds install -a
+6-1. Use node.js custom packages:
+
+rm ./package/feeds/packages/node
+rm ./package/feeds/packages/node-arduino-firmata
+rm ./package/feeds/packages/node-cylon
+rm ./package/feeds/packages/node-hid
+rm ./package/feeds/packages/node-serialport
+./scripts/feeds install -a -p node
+Prepare the kernel configuration:
+make menuconfig
+Select the following options:
+
+Target System: Ralink RT288x/RT3xxx
+Subtarget: MT7688 based boards
+Target Profile: LinkIt7688
+
+7-1. Select optional packages of node.js custom feed.
+You can select version of node.js and modules that you need.
+
+Save and exit (use the default configuration file without any modification)
+
+Start the compilation process:
+make V=99
