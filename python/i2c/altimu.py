@@ -51,14 +51,12 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         self.kalmanZP_00 = self.kalmanZP_01 = 0.0
         self.kalmanZP_10 = self.kalmanZP_11 = 0.0
         # Kalman filtered angle values
-        self.kalmanAngleX = 0.0
-        self.kalmanAngleY = 0.0
-        self.kalmanAngleZ = 0.0
+        self.kalmanX = 0.0
+        self.kalmanY = 0.0
+        self.kalmanZ = 0.0
 
         ## Initialize complementary filter variables
-        self.complementaryAngleX = 0.0
-        self.complementaryAngleY = 0.0
-        self.complementaryAngleZ = 0.0
+        self.complementaryAngles = [0,0,0]
 
     def __del__(self):
         """ Cleanup routine. """
@@ -171,8 +169,8 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
 
         # Calculate complementary filtered angles
         self.complementaryAngles = [None if (gyrRates[i] is None or accelAngles[i] is None)
-            else self.C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT)
-            + (1 - self.C_FILTER_CONST) * accelAngles[i]
+            else C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT)
+            + (1 - C_FILTER_CONST) * accelAngles[i]
             for i in range(3)]
 
         # Return vector

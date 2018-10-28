@@ -32,7 +32,7 @@
 #include <Wire.h>
 #include <LIS3MDL.h>
 #include <LSM6.h>
-#define PERIOD 20
+#define PERIOD 50
 #define SAMPLE_SIZE 5
 #define GRAVITY 256
 
@@ -65,6 +65,9 @@ void setup()
 {
   pinMode(13, OUTPUT);
   pinMode(18, INPUT);
+
+  for (int y = 0; y < 5; y++)
+    pinMode(flexPIN[y],INPUT);
 
   Serial.begin(9600);
   Serial1.begin(57600);  // open internal serial connection to MT7688imuData
@@ -99,13 +102,9 @@ void setup()
 
   delay(2000);
 
-  delay(20);
-
-
   for (int s = 0; s < SAMPLE_SIZE; s++) {
     for (int i = 0; i < 5; i++) {
       sample[i][s] = analogRead(flexPIN[i]);
-      delay(SAMPLE_SIZE);
     }
   }
 

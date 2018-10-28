@@ -40,4 +40,12 @@ app.use(function (err, req, res, next) {
   res.render('error');
 });
 
+var socket = require('./service/socket')
+var serial = require('./service/serial')
+
+serial.on('data', function (data) {
+  console.log(data)
+  socket.sendData(data.toString().slice(0, -1).split('\t'))
+});
+
 module.exports = app;

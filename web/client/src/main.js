@@ -9,19 +9,20 @@ import Vuex from 'vuex'
 import VueSocketio from 'vue-socket.io'
 import socketio from 'socket.io-client'
 import store from './store'
-// import axios from 'axios'
+import axios from 'axios'
 
+let host = '161.246.6.42'
 Vue.use(Vuetify)
 Vue.use(Vuex)
-Vue.use(VueSocketio, socketio('http://161.246.6.41:3000/web'), store)
-// axios
-//   .get('http://161.246.6.41:3000/api')
-//   .then(response => console.log(response))
+Vue.use(VueSocketio, socketio(`http://${host}:3000/web`), store)
+axios
+  .get(`http://${host}:3000/api`)
+  .then(response => console.log(response))
 
 Vue.config.productionTip = false
 
 /* eslint-disable no-new */
-new Vue({
+global.vm = new Vue({
   el: '#app',
   router,
   store,
