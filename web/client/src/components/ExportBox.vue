@@ -15,9 +15,10 @@
               </v-layout>
               <v-layout row>
                 <h4>Include Gestures</h4>
+                <v-btn @click="includeGestures = Object.keys(getCapturedDataStream)">All</v-btn>
                 <v-select
                   v-model="includeGestures"
-                  :items="Object.keys(this.getCapturedDataStream)"
+                  :items="Object.keys(getCapturedDataStream)"
                   chips
                   multiple
                 ></v-select>
@@ -30,7 +31,6 @@
                 </v-radio-group>
               </v-layout>
               <v-layout row>
-                  <v-btn color='info' @click='resample()'>Resample</v-btn>
                   <v-btn color='success' @click='exportCSV()'>Export</v-btn>
               </v-layout>
             </v-layout>
@@ -83,7 +83,7 @@ export default {
           if (!this.includeAcc) {
             row.splice(0, 3)
           }
-          csvContent += [...row, gesture].join(',') + '\n'
+          csvContent += [...row, gesture.split('.')[0]].join(',') + '\n'
         }
       }
       console.log(csvContent)
@@ -94,14 +94,6 @@ export default {
       link.setAttribute('href', data)
       link.setAttribute('download', 'export.csv')
       link.click()
-    },
-    resample () {
-      let mapped = {}
-      for (const key in this.getCapturedDataStream) {
-        let ges = this.getCapturedDataStream[key]
-        mapped[key] = ges[0].map((col, i) => ges.map(row => row[i]))
-      }
-      this.$socket.emit('resample', mapped, 20)
     }
   },
   watch: {

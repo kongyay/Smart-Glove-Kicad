@@ -45,6 +45,7 @@ export default {
         reader.onload = (event) => {
           var csv = event.target.result
           csv = csv.split('\n').map(e => e.split(','))
+          let lastname = ''
           csv.forEach(e => {
             let name = e[e.length - 1]
             e = e.slice(0, -1)
@@ -52,7 +53,21 @@ export default {
 
             if (name in this.dataRead === false) {
               this.dataRead[name] = []
+            } else {
+              let cutname = lastname.split('.')[0]
+              if (cutname !== name) {
+                let i = 0
+                let newname = name
+                do {
+                  newname = name + '.' + i++
+                } while (newname in this.dataRead)
+                name = newname
+                this.dataRead[name] = []
+              } else if (cutname === name) {
+                name = lastname
+              }
             }
+            lastname = name
 
             if (e.length === 9) {
               e = [...e, 0, 0, 0, 0, 0]

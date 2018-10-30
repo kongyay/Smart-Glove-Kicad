@@ -1,58 +1,36 @@
-from sklearn.neural_network import MLPClassifier
 from numpy import genfromtxt
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.externals import joblib
-
-scalerFlex = StandardScaler()
-scalerImu = StandardScaler()
-mlp_flex = joblib.load('../predict/model.joblib')
-mlp_imu = joblib.load('../predict/model_imu.joblib')
+from keras.models import load_model
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from keras import optimizers
+from keras.utils import to_categorical
 
 
-def setScalarFlex():
-    training_data = genfromtxt('../predict/export_to_num.csv', delimiter=',')
-    X = training_data[:525:, 0:5]
-    y = training_data[:525, 5]
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
+class Model():
+    def __init__(self):
+        self.path = '../predict/model.h5'
+        #self.path = 'model.h5'
+        self.my_model = None
 
-    scalerFlex.fit(X_train)
+    def load(self):
+        print("Loading Model...")
+        self.my_model = load_model(self.path)
+        return True
 
+    def predictFlex(self, data_test):
+        data_test = np.asarray(data_test, dtype="float64")
+        output = self.my_model.predict_classes(data_test)
+        return output
 
-def setScalarImu():
-    training_data = genfromtxt('../predict/export_imu.csv', delimiter=',')
-    X = training_data[:, 0:9]
-    y = training_data[:, 9]
-    X_train, X_test, y_train, y_test = train_test_split(X, y)
+    def predictTest(self):
+        self.layer()
+        data_test = [[[22, 22, 6, 292, 142], [22, 22, 6, 293, 142], [22, 22, 6, 294, 142], [20, 20, 5, 292, 141], [20, 20, 5, 294, 140], [20, 20, 4, 294, 140], [20, 20, 4, 294, 140], [22, 22, 7, 295, 142], [21, 21, 6, 293, 141], [21, 21, 6, 292, 141], [
+            21, 21, 6, 292, 141], [20, 21, 5, 291, 140], [20, 21, 5, 291, 140], [20, 21, 5, 291, 140], [20, 20, 5, 291, 140], [21, 22, 6, 290, 139], [21, 21, 5, 291, 139], [20, 21, 5, 291, 139], [20, 21, 5, 291, 139], [20, 20, 5, 292, 139]]]
+        data_test = np.asarray(data_test, dtype="float64")
+        output = self.my_model.predict_classes(data_test)
+        return output
 
-    scalerImu.fit(X_train)
-
-
-def predictFlex(data_test):
-    data_test = np.asarray(data_test, dtype="float64")
-    data_test = scalerFlex.transform(data_test)
-    output = mlp_flex.predict(data_test)
-    return output
-
-
-def predictImu(data_test):
-    data_test = np.asarray(data_test, dtype="float64")
-    data_test = scalerImu.transform(data_test)
-    output = mlp_imu.predict(data_test)
-    return output
-
-
-def predictAll(data_test):
-    data_test1 = np.asarray([data_test[9:]], dtype="float64")
-    data_test1 = scalerFlex.transform(data_test1)
-    output1 = mlp_flex.predict(data_test1)
-
-    data_test2 = np.asarray([data_test[:9]], dtype="float64")
-    data_test2 = scalerImu.transform(data_test2)
-    output2 = mlp_imu.predict(data_test2)
-    return [output1, output2]
-
-
-setScalarFlex()
-setScalarImu()
+    def layer(self):
+        print(self.my_model.summary())

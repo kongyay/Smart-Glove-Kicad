@@ -4,6 +4,7 @@ import time
 import datetime
 import random
 import json
+from os import getpid
 
 # Import threading libs
 import eventlet
@@ -26,7 +27,7 @@ from oled import init_oled, write_all, write_row
 
 # Import ML modules
 sys.path.insert(0, '../predict')
-from predict import predictImu, predictFlex, predictAll
+from predict import Model
 
 # Import DB libs
 from models import Gesture, Pose, Movement, Step
@@ -60,6 +61,10 @@ movingData = []
 threshold = [25 for i in range(inputSize)]
 # MUX Channels
 imu_mux = []
+# KERAS MODEL
+model = Model()
+# Boolean if model is loaded
+model_isloaded = True
 
 # _____________________________ SOCKET.IO Handlers __________________________________
 
@@ -68,25 +73,25 @@ imu_mux = []
 def on_connect():
     global connectedClients
     connectedClients += 1
-    print('Client Connected')
+    print(getpid(), 'Client Connected')
 
 
 @socketio.on('disconnect', namespace='/web')
 def on_disconnect():
     global connectedClients
     connectedClients -= 1
-    print('Client Disconnected')
+    print(getpid(), 'Client Disconnected')
 
 
 @socketio.on('ping', namespace='/web')
 def on_ping():
-    print("GOT PING :D :) :P ==========")
+    print(getpid(), "GOT PING :D :) :P ==========")
     socketio.emit('pong', 'This is pong :)', namespace='/web')
 
 
 @socketio.on('resample', namespace='/web')
 def on_resample(gestures, size):
-    print("Resampling...", size)
+    print(getpid(), "Resampling...", size)
     for ges in gestures:
         if(len(gestures[ges][0]) > size):
             # Resample
@@ -106,29 +111,55 @@ def index():
     return "Hello World"
 
 
-@app.route('/predict/flex')
-def predict_flex_handler():
-    f1 = int(request.args.get('f1'))
-    f2 = int(request.args.get('f2'))
-    f3 = int(request.args.get('f3'))
-    f4 = int(request.args.get('f4'))
-    f5 = int(request.args.get('f5'))
-    # print(f1, f2, f3, f4, f5)
-    thread_predict = eventlet.spawn(
-        background_predictFlex, [[f1, f2, f3, f4, f5]])
-    thread_predict.link(callback_predict)
-    return ":)"
-
-
 @app.route('/predict/all')
 def predict_all_handler():
     data = request.args.get('data')
     data = [int(i) for i in json.loads(data)]
-    # print(data)
-    thread_predict = eventlet.spawn(
-        background_predictAll, data)
-    thread_predict.link(callback_predict)
+    # print(getpid(),data)
+    # thread_predict = eventlet.spawn(
+    #     background_predictAll, data)
+    # thread_predict.link(callback_predict)
     return ":)"
+
+
+@app.route('/predict/moveflex')
+def predict_moveflex_handler():
+    global model, model_isloaded
+    if model_isloaded:
+        data = request.args.get('data')
+        data = [[int(i) for i in j[9:]] for j in json.loads(data)]
+        # print(getpid(), data)
+        thread_predict = eventlet.spawn(model.predictFlex, [data])
+        thread_predict.link(callback_predict)
+        return ":)"
+    else:
+        return ":("
+
+
+@app.route('/predict/moveimu')
+def predict_moveimu_handler():
+    global model, model_isloaded
+    if model_isloaded:
+        data = request.args.get('data')
+        data = [[int(i) for i in j[:6]] for j in json.loads(data)]
+        # print(getpid(), data)
+        thread_predict = eventlet.spawn(model.predictImu, [data])
+        thread_predict.link(callback_predict)
+        return ":)"
+    else:
+        return ":("
+
+
+@app.route('/predict/test')
+def predict_test_handler():
+    global model, model_isloaded
+    if model_isloaded:
+        # print(getpid(), data)
+        print(model.predictTest())
+        # thread_predict.link(callback_predict)
+        return ":)"
+    else:
+        return ":("
 
 
 @app.route('/gestures')
@@ -137,9 +168,9 @@ def get_gestures():
     ges_col = Gesture._get_collection()
 
     # step1 = Step(pose=Pose.objects.first(), movement=Movement.objects.first())
-    # print(step1)
+    # print(getpid(),step1)
     # gesture = Gesture(name="GumGesture", steps=[step1, step1])
-    # print(gesture)
+    # print(getpid(),gesture)
     # gesture.save()
     gestures = Gesture.objects
 
@@ -174,9 +205,8 @@ def dummy_flex():
 
 def loop_input():
     global datas
-
+    print(getpid(), "Starting input loop...")
     eventlet.spawn_n(write_row, text="Starting....")
-    time.sleep(2)
 
     start = datetime.datetime.now()
     while True:
@@ -185,7 +215,7 @@ def loop_input():
             # Switch mux channel & Read data
             SW.channel(cur_imu.get_channel())
             data[i] = [round(d, 3) for d in cur_imu.get_all(start)]
-            print("Channel#", cur_imu.get_name(), data[i])
+            # print(getpid(), "Channel#", cur_imu.get_name(), data[i])
 
             # Calculation
             # if len(datas) > windowSize:
@@ -198,7 +228,7 @@ def loop_input():
         eventlet.spawn_n(background_livedata, data)
 
         # Prepare for the next iteration
-        print("==================DELAY %f ==================" % samplePeriod)
+        # print(getpid(), "==================DELAY %f ==================" %              samplePeriod)
         time.sleep(samplePeriod)
         start = datetime.datetime.now()
 
@@ -215,25 +245,13 @@ def background_write_all(data):
                ','.join(str(round(i)) for i in data[6:9]) if inputSize > 6 else '---', "Good Luck"])
 
 
-def background_predictFlex(data):
-    return predictFlex(data)
-
-
-def background_predictImu(data):
-    return predictImu(data)
-
-
-def background_predictAll(data):
-    return predictAll(data)
-
-
 def background_process_accel(newData):
     global avgData, movingData
     diff = [0 for i in range(inputSize)]
     avgData = [sum(map(lambda d: d[i], datas)) /
                windowSize for i in range(inputSize)]
     diff = [round(newData[i]-avgData[i]) for i in range(inputSize)]
-    # print('\t'.join([str(round(x)) for x in avgData]))
+    # print(getpid(),'\t'.join([str(round(x)) for x in avgData]))
 
     for i in range(inputSize):
         if(abs(diff[i]) > threshold[i]):
@@ -247,29 +265,46 @@ def background_process_accel(newData):
                 # thread_predict = eventlet.spawn(background_predict, avgMoving)
                 # thread_predict.link(callback_predict)
                 eventlet.spawn_n(background_write_all, avgMoving)
-                # print("Move:", avgMoving)
+                # print(getpid(),"Move:", avgMoving)
 
     # for i in range(3):
         # if(abs(newData[i]-avgData[i])):
 
 
 def callback_predict(gt, *args, **kwargs):
-    """ this function is called when results are available """
+    """ Callback for prediction """
     result = gt.wait()
-    print(result)
+    print(getpid(), result)
+
+
+def callback_load_model(gt, *args, **kwargs):
+    global model_isloaded
+    """ Callback for model loading """
+    print(getpid(), "Model is loaded !!")
+    model_isloaded = True
 
 
 # _____________________________ MAIN ____________________________
-if __name__ == '__main__':
+
+def main():
+    global model
+    # Init IMU MUX
     for i in [0, 1, 7]:
         try:
             SW.channel(i)
-            print("Init IMU #", i)
+            print(getpid(), "Init IMU #", i)
             imu_mux.append(IMU(i))
         except OSError:
-            print("Error Init Channel #", i)
-    thread_input = eventlet.spawn(loop_input)
-    # thread_input.link(callback)
+            print(getpid(), "Error Init Channel #", i)
+    thread_input = eventlet.spawn_n(loop_input)
 
-    print('RUNNING')
-    socketio.run(app, host='0.0.0.0', port='3000', debug=True)
+    # Load keras model
+    model.load()
+    print(model.predictTest())
+
+    print(getpid(), 'RUNNING')
+    socketio.run(app, host='0.0.0.0', port='3000')
+
+
+if __name__ == '__main__':
+    main()
