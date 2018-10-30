@@ -1,7 +1,8 @@
 import Vue from 'vue'
 import Router from 'vue-router'
-import Index from '@/components/Index'
-import Super from '@/components/Super'
+import Index from '@/components/page/Index'
+import AllIMU from '@/components/page/AllIMU'
+import Predict from '@/components/page/Predict'
 
 Vue.use(Router)
 
@@ -11,8 +12,12 @@ export default new Router({
     name: 'Index',
     component: Index
   }, {
-    path: '/super',
-    name: 'Super',
-    component: Super
+    path: '/allimu',
+    name: 'AllIMU',
+    component: AllIMU
+  }, {
+    path: '/predict',
+    name: 'Predict',
+    component: Predict
   }]
 })

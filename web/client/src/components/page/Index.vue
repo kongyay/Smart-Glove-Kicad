@@ -27,14 +27,9 @@
       <v-spacer></v-spacer>
       <v-btn v-if='!isCapturing && !autoSave' color="info" @click='startAuto()'>Auto</v-btn>
       <v-btn v-if='!isCapturing && !autoSave' color="info" @click='startCapture()'>Start</v-btn>
-      <v-btn v-else-if='!isCooldown' color="warning" @click='stopCapture()'>Stop</v-btn>
+      <v-btn v-else :disabled='isCooldown' color="warning" @click='stopCapture()'>Stop</v-btn>
       <v-btn color="success" @click='saveCapture()'>Save</v-btn>
       <v-btn color="error" @click='clearCapture()'>Clear</v-btn>
-    </v-layout>
-
-    <v-layout row>
-      <v-btn color="primary" @click='goPredict()'>PREDICT!</v-btn>
-      <v-btn color="success" @click='resample()'>Resample</v-btn>
     </v-layout>
 
     <import-box></import-box>
@@ -44,10 +39,10 @@
 </template>
 
 <script>
-import {mapGetters, mapMutations, mapActions} from 'vuex'
-import LiveDataSheet from './LiveDataSheet.vue'
-import ExportBox from './ExportBox.vue'
-import ImportBox from './ImportBox.vue'
+import {mapGetters, mapMutations} from 'vuex'
+import LiveDataSheet from '../LiveDataSheet.vue'
+import ExportBox from '../ExportBox.vue'
+import ImportBox from '../ImportBox.vue'
 
 export default {
   data () {
@@ -57,6 +52,7 @@ export default {
       nameRules: [v => !!v || 'Name is required', v => v.split('.').length < 3 || 'Must contain 0-1 dot.'],
       selectedName: '',
       autoSave: false,
+      autoPredict: false,
       isCooldown: false,
       saveDelay: 2000,
       saveDelayPercent: 0,
@@ -65,11 +61,10 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getDataAll', 'isCapturing', 'getCaptureSize', 'getRecentDataStream', 'getRecentDataStreamSize', 'getCapturedDataStream', 'getLastPredictDataStream'])
+    ...mapGetters(['getDataAll', 'isCapturing', 'getCaptureSize', 'getRecentDataStream', 'getRecentDataStreamSize', 'getCapturedDataStream'])
   },
   methods: {
     ...mapMutations(['START_CAPTURE', 'STOP_CAPTURE', 'SAVE_CAPTURE', 'CLEAR_CAPTURE', 'REMOVE_CAPTURE', 'RENAME_CAPTURE']),
-    ...mapActions(['manualPredict']),
     goLive () {
       this.dataStream = this.getDataAll
     },
@@ -94,6 +89,7 @@ export default {
     },
     stopCapture () {
       this.autoSave = false
+      this.autoPredict = false
       clearInterval(this.timer)
       this.STOP_CAPTURE()
     },
@@ -107,10 +103,6 @@ export default {
         this.SAVE_CAPTURE(this.saveName)
         global.vm.$forceUpdate()
       }
-    },
-    goPredict () {
-      this.dataStream = this.getLastPredictDataStream
-      this.manualPredict()
     },
     rename (oldname) {
       let newname = prompt('Please enter new name:', '')
@@ -133,7 +125,6 @@ export default {
         this.STOP_CAPTURE()
         this.saveCapture(this.saveName)
         this.isCooldown = true
-        console.log('what')
         clearInterval(this.timer)
         this.timer = setInterval(() => {
           this.timerCurrent += 1
@@ -149,6 +140,9 @@ export default {
         this.saveDelayPercent = (val + 1) / this.getCaptureSize * 100
       }
     }
+  },
+  mounted () {
+    this.dataStream = this.getDataAll
   },
   components: {LiveDataSheet, ExportBox, ImportBox}
 }

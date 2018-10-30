@@ -128,8 +128,9 @@ def predict_moveflex_handler():
     if model_isloaded:
         data = request.args.get('data')
         data = [[int(i) for i in j[9:]] for j in json.loads(data)]
+        time_send = request.args.get('time')
         # print(getpid(), data)
-        thread_predict = eventlet.spawn(model.predictFlex, [data])
+        thread_predict = eventlet.spawn(model.predictFlex, [data], time_send)
         thread_predict.link(callback_predict)
         return ":)"
     else:
@@ -142,10 +143,13 @@ def predict_moveimu_handler():
     if model_isloaded:
         data = request.args.get('data')
         data = [[int(i) for i in j[:6]] for j in json.loads(data)]
+        time_send = request.args.get('time')
         # print(getpid(), data)
-        thread_predict = eventlet.spawn(model.predictImu, [data])
-        thread_predict.link(callback_predict)
-        return ":)"
+        result, time_send = model.predictImu([data], time_send)
+        print(getpid(), time_send, result)
+        #thread_predict = eventlet.spawn(model.predictImu, [data], time_send)
+        # thread_predict.link(callback_predict)
+        return str(result[0])
     else:
         return ":("
 
@@ -189,16 +193,20 @@ def interpolate(arr, fi):
         return arr[i] + f*(arr[i+1]-arr[i])
 
 
+def dummy_imu():
+    return [0 for i in range(9)]
+
+
 def dummy_accgyro():
-    return [i for i in range(6)]
+    return [0 for i in range(6)]
 
 
 def dummy_mag():
-    return [i for i in range(3)]
+    return [0 for i in range(3)]
 
 
 def dummy_flex():
-    return [i*100 for i in range(5)]
+    return [0 for i in range(5)]
 
 # _____________________________ THREAD/LOOP/BG ____________________________
 
@@ -217,24 +225,26 @@ def loop_input():
             data[i] = [round(d, 3) for d in cur_imu.get_all(start)]
             # print(getpid(), "Channel#", cur_imu.get_name(), data[i])
 
-            # Calculation
+            # # Calculation
             # if len(datas) > windowSize:
             #     eventlet.spawn_n(background_process_accel, data)
             #     datas = datas[1:]
             # datas.append(data)
 
-        # Export Data through socket/oled
+        # # Export Data through socket/oled
         # thread_oled = eventlet.spawn_n(background_write_all, data)
+        # # fill the missing imu
+        data = data + [dummy_imu() for i in range(len(data), 6)]
         eventlet.spawn_n(background_livedata, data)
 
         # Prepare for the next iteration
-        # print(getpid(), "==================DELAY %f ==================" %              samplePeriod)
+        #print(getpid(), "==================DELAY %f ==================" %   samplePeriod)
         time.sleep(samplePeriod)
         start = datetime.datetime.now()
 
 
 def background_livedata(data):
-    dataset = data + dummy_flex()
+    dataset = data
     socketio.emit('livedata', {'msg': dataset}, namespace='/web')
 
 
@@ -273,8 +283,9 @@ def background_process_accel(newData):
 
 def callback_predict(gt, *args, **kwargs):
     """ Callback for prediction """
-    result = gt.wait()
-    print(getpid(), result)
+    result, time_send = gt.wait()
+    if result[0] != 5:
+        print(getpid(), time_send, result)
 
 
 def callback_load_model(gt, *args, **kwargs):

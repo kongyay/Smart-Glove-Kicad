@@ -2,6 +2,7 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 
 import glove from './modules/glove'
+import allimu from './modules/allimu'
 
 Vue.use(Vuex)
 
@@ -15,4 +16,9 @@ Vue.use(Vuex)
 
 //   return Store
 // }
-export default new Vuex.Store(glove)
+export default new Vuex.Store({
+  modules: {
+    glove,
+    allimu
+  }
+})

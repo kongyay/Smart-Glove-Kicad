@@ -12,6 +12,7 @@
           value="true"
           v-for="(item, i) in items"
           :key="i"
+          :to="{path: item.link}"
         >
           <v-list-tile-action>
             <v-icon v-html="item.icon"></v-icon>
@@ -46,7 +47,16 @@ export default {
       drawer: true,
       items: [{
         icon: 'bubble_chart',
-        title: 'Live Data Visualization'
+        title: 'Live Data Visualization',
+        link: '/'
+      }, {
+        icon: 'bubble_chart',
+        title: 'Predict',
+        link: '/predict'
+      }, {
+        icon: 'bubble_chart',
+        title: 'All IMU (Experiment)',
+        link: '/allimu'
       }]
     }
   },

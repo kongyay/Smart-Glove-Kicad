@@ -6,8 +6,10 @@ const state = {
   capturedDataStream: {},
   recentDataStream: [],
   lastPredictDataStream: [],
+  lastPredictHistory: [],
   capturing: false,
   captureSize: 20,
+  maxVals: [700, 700, 700, 8000, 8000, 8000, 5000, 5000, 5000, 1024, 1024, 1024, 1024, 1024],
   headNames: [
     'AccX',
     'AccY',
@@ -85,10 +87,23 @@ const mutations = {
       state.liveDataStream.push(payload.msg)
     } else {
       state.liveDataStream.shift()
-      state.liveDataStream.push(payload.msg)
-    }
-    if (state.capturing) {
-      state.recentDataStream.push(payload.msg)
+      // console.log(payload.msg)
+      let quantized = payload.msg.map((x, i) => Math.max(Math.min(Math.floor(x / state.maxVals[i] * 100), 100), -100))
+      state.liveDataStream.push(quantized)
+      // state.lastPredictDataStream = state.liveDataStream.slice()
+      // axios
+      //   .get(`http://161.246.6.41:3000/predict/moveimu`, {
+      //     params: {
+      //       data: JSON.stringify(state.liveDataStream),
+      //       time: new Date()
+      //     }
+      //   })
+      //   .then(response => console.log('PREDICTED', response))
+      //   .catch(error => console.log(error.response))
+
+      if (state.capturing) {
+        state.recentDataStream.push(quantized)
+      }
     }
   },
   SOCKET_RESAMPLED: (state, [payload]) => {
@@ -105,16 +120,24 @@ const mutations = {
 const actions = {
   manualPredict: ({
     state
-  }) => {
-    state.lastPredictDataStream = state.liveDataStream.slice()
+  }, payload) => {
+    state.lastPredictDataStream = payload.slice()
+    console.log(JSON.stringify(state.lastPredictDataStream.map(d => d.slice(0, 6))))
     axios
       .get(`http://161.246.6.41:3000/predict/moveimu`, {
         params: {
-          data: JSON.stringify(state.liveDataStream)
+          data: JSON.stringify(state.lastPredictDataStream)
         }
       })
-      .then(response => console.log('PREDICTED', response))
-      .catch(error => console.log(error.response))
+      .then(response => {
+        console.log('PREDICTED', response)
+        if (state.lastPredictHistory.length < 5) {
+          state.lastPredictHistory.unshift(response.data)
+        } else {
+          state.lastPredictHistory.pop()
+          state.lastPredictHistory.unshift(response.data)
+        }
+      })
   }
 }
 
@@ -131,12 +154,17 @@ const getters = {
   getRecentDataStreamSize: state => state.recentDataStream.length,
   getCapturedDataStream: state => state.capturedDataStream,
   getLastPredictDataStream: state => state.lastPredictDataStream,
-  getHeadNames: state => state.headNames
+  getHeadNames: state => state.headNames,
+  getMaxVals: state => state.maxVals,
+  getQuantized: state => (x, i) => Math.max(Math.min(Math.floor(x / state.maxVals[i] * 100), 100), -100),
+  getLastPredictHistory: state => state.lastPredictHistory
 }
-export default {
-  namespaced: true,
-  mutations,
-  getters,
+
+const module = {
   state,
+  getters,
+  mutations,
   actions
 }
+
+export default module
