@@ -52,16 +52,11 @@ export default {
   },
   computed: {
     chartData () {
-      let labelsTemp = Array.from(Array(this.dataset.length).keys())
+      let maxSize = Math.max(...this.dataset.map(x => x.data.length))
+      let labelsTemp = Array.from(Array(maxSize).keys())
       return {
         labels: labelsTemp,
-        datasets: [
-          {
-            label: this.name,
-            backgroundColor: this.color,
-            data: this.dataset
-          }
-        ]
+        datasets: this.dataset
       }
     }
   },

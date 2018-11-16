@@ -7,6 +7,8 @@
       fixed
       app
     >
+
+      <user-card></user-card>
       <v-list>
         <v-list-tile
           value="true"
@@ -41,25 +43,32 @@
 </template>
 
 <script>
+import UserCard from './components/UserCard.vue'
 export default {
   data () {
     return {
       drawer: true,
       items: [{
-        icon: 'bubble_chart',
+        icon: 'accessibility',
+        title: 'Gestures',
+        link: '/gestures'
+      }, {
+        icon: 'supervised_user_circle',
         title: 'Live Data Visualization',
-        link: '/'
-      }, {
-        icon: 'bubble_chart',
-        title: 'Predict',
-        link: '/predict'
-      }, {
-        icon: 'bubble_chart',
-        title: 'All IMU (Experiment)',
         link: '/allimu'
       }]
     }
   },
+  components: {
+    UserCard
+  },
   name: 'App'
 }
 </script>
+
+<style>
+img {
+  width: 100%;
+  height: 100%;
+}
+</style>

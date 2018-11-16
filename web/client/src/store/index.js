@@ -1,8 +1,9 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
-import glove from './modules/glove'
-import allimu from './modules/allimu'
+import flex from './modules/flexStore'
+import allimu from './modules/allimuStore'
+import user from './modules/userStore'
 
 Vue.use(Vuex)
 
@@ -18,7 +19,8 @@ Vue.use(Vuex)
 // }
 export default new Vuex.Store({
   modules: {
-    glove,
-    allimu
+    flex,
+    allimu,
+    user
   }
 })

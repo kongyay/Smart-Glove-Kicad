@@ -52,7 +52,6 @@ export default {
           csv.forEach(e => {
             let name = e[e.length - 1]
             e = e.slice(0, -1)
-            e = e.map((x, i) => parseInt(this.getQuantized(x, i)))
 
             if (name in this.dataRead === false) {
               this.dataRead[name] = []
@@ -85,8 +84,10 @@ export default {
             lastname = name
 
             if (e.length === 9) {
+              e = e.map((x, i) => parseInt(this.getQuantized(x, i)))
               e = [...e, 0, 0, 0, 0, 0]
             } else if (e.length === 5) {
+              e = e.map((x, i) => parseInt(this.getQuantized(x, i + 9)))
               e = [0, 0, 0, 0, 0, 0, 0, 0, 0, ...e]
             }
 

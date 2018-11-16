@@ -21,7 +21,7 @@
     </v-layout>
 
     <v-layout row v-for='(val,i) in getLastPredictHistory' :key=i>
-      <v-btn block :small='i!=0' :outline='i!=0' color="green">{{gestureName[parseInt(val)-1]}}</v-btn>
+      <v-btn block :small='i!=0' :large='i===0' :outline='i!=0' color="green">{{gestureName[parseInt(val)-1]}}</v-btn>
     </v-layout>
 
   </v-container>
@@ -83,6 +83,7 @@ export default {
       if (val >= this.getCaptureSize && this.autoPredict) {
         this.STOP_CAPTURE()
         this.doPredict(this.getRecentDataStream)
+        this.dataStream = this.getLastPredictDataStream
         this.CLEAR_CAPTURE()
         this.isCooldown = true
         clearInterval(this.timer)

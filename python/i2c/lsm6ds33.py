@@ -225,41 +225,8 @@ class LSM6DS33(I2C):
         return self._getSensorRawLoHi3(LSM6DS33_ADDR, self.lsmAccRegisters)
 
 
-    def getLSMTemperatureRaw(self):
-        """ Return the raw temperature value. """
-        # Check if device has been set up
-        if not self.lsmTempEnabled:
-            raise(Exception('Temperature sensor has to be enabled first'))
-
-        # Read sensor data
-        return self._getSensorRawLoHi1(LSM6DS33_ADDR, self.lsmAccRegisters)
-
-
     def getIMURaw(self):
         """ Return a 6-element list of the raw output values of both IMU
             sensors, accelerometer and gyroscope.
         """
         return self.getAccelerometerRaw() + self.getGyroscopeRaw()
-
-
-    def getAllRaw(self):
-        """ Return a 7-element list of the raw output of all three
-            sensors, accelerometer, gyroscope, temperature.
-        """
-        return self.getAccelerometerRaw() \
-                + self.getGyroscopeRaw() \
-                + [self.getLSMTemperatureRaw()]
-
-
-    def getLSMTemperatureCelsius(self, rounded = True):
-        """ Return the temperature sensor reading in C as a floating
-            point number rounded to one decimal place.
-        """
-        # According to the datasheet, the raw temperature value is 0
-        # @ 25 degrees Celsius and the resolution of the sensor is 16
-        # steps per degree Celsius.
-        # Thus, the following statement should return the temperature in
-        # degrees Celsius.
-        if rounded:
-            return round(25.0 + self.getLSMTemperatureRaw() / 16.0, 1)
-        return 25.0 + self.getLSMTemperatureRaw() / 16.0

@@ -4,6 +4,7 @@ import time
 import datetime
 import random
 import json
+import numpy as np
 from os import getpid
 
 # Import threading libs
@@ -23,11 +24,14 @@ socketio = SocketIO(app)
 sys.path.insert(0, '../i2c')
 from imu import IMU
 from mux import SW
-from oled import init_oled, write_all, write_row
-
+from oled import display
+ 
 # Import ML modules
-sys.path.insert(0, '../predict')
-from predict import Model
+enableML = False
+if enableML:
+    sys.path.insert(0, '../predict')
+    from predict import Model
+    model = Model()
 
 # Import DB libs
 from models import Gesture, Pose, Movement, Step
@@ -58,11 +62,11 @@ diff = []
 # Average Moving data since start moving to stop moving
 movingData = []
 # Threshold which one of each value considered as start moving
-threshold = [25 for i in range(inputSize)]
+threshold = 20
 # MUX Channels
 imu_mux = []
-# KERAS MODEL
-model = Model()
+main_mux_channel = 1
+
 # Boolean if model is loaded
 model_isloaded = True
 
@@ -102,6 +106,16 @@ def on_resample(gestures, size):
                 gestures[ges][attr] = mapped
     socketio.emit('resampled', gestures, namespace='/web')
 
+@socketio.on('predict', namespace='/web')
+def on_predict(data):
+    if enableML:
+        global model
+        result, time_send = model.predictImu([data], None)
+        print(getpid(), time_send, result)
+        if display != None:
+            display.write_row(text=str(result[0]))
+        socketio.emit('predict_result', str(result[0]), namespace='/web')
+
 # _____________________________ Flask __________________________________
 
 
@@ -109,62 +123,6 @@ def on_resample(gestures, size):
 @app.route('/api')
 def index():
     return "Hello World"
-
-
-@app.route('/predict/all')
-def predict_all_handler():
-    data = request.args.get('data')
-    data = [int(i) for i in json.loads(data)]
-    # print(getpid(),data)
-    # thread_predict = eventlet.spawn(
-    #     background_predictAll, data)
-    # thread_predict.link(callback_predict)
-    return ":)"
-
-
-@app.route('/predict/moveflex')
-def predict_moveflex_handler():
-    global model, model_isloaded
-    if model_isloaded:
-        data = request.args.get('data')
-        data = [[int(i) for i in j[9:]] for j in json.loads(data)]
-        time_send = request.args.get('time')
-        # print(getpid(), data)
-        thread_predict = eventlet.spawn(model.predictFlex, [data], time_send)
-        thread_predict.link(callback_predict)
-        return ":)"
-    else:
-        return ":("
-
-
-@app.route('/predict/moveimu')
-def predict_moveimu_handler():
-    global model, model_isloaded
-    if model_isloaded:
-        data = request.args.get('data')
-        data = [[int(i) for i in j[:6]] for j in json.loads(data)]
-        time_send = request.args.get('time')
-        # print(getpid(), data)
-        result, time_send = model.predictImu([data], time_send)
-        print(getpid(), time_send, result)
-        #thread_predict = eventlet.spawn(model.predictImu, [data], time_send)
-        # thread_predict.link(callback_predict)
-        return str(result[0])
-    else:
-        return ":("
-
-
-@app.route('/predict/test')
-def predict_test_handler():
-    global model, model_isloaded
-    if model_isloaded:
-        # print(getpid(), data)
-        print(model.predictTest())
-        # thread_predict.link(callback_predict)
-        return ":)"
-    else:
-        return ":("
-
 
 @app.route('/gestures')
 def get_gestures():
@@ -193,6 +151,21 @@ def interpolate(arr, fi):
         return arr[i] + f*(arr[i+1]-arr[i])
 
 
+def angle_diff(unit1, unit2):
+    phi = abs(unit2-unit1) % 360
+    sign = 1
+    # used to calculate sign
+    if not ((unit1-unit2 >= 0 and unit1-unit2 <= 180) or (
+            unit1-unit2 <= -180 and unit1-unit2 >= -360)):
+        sign = -1
+    if phi > 180:
+        result = 360-phi
+    else:
+        result = phi
+
+    return result*sign
+
+
 def dummy_imu():
     return [0 for i in range(9)]
 
@@ -214,16 +187,43 @@ def dummy_flex():
 def loop_input():
     global datas
     print(getpid(), "Starting input loop...")
-    eventlet.spawn_n(write_row, text="Starting....")
-
-    start = datetime.datetime.now()
+    
+    data_record = []
+    data_back = []
+    sampleRate = 20
+    record = False
+    first = True
     while True:
         data = [[] for i in imu_mux]
+        data_ori = [[] for i in imu_mux]
+        starttime = [datetime.datetime.now() for i in imu_mux]
         for i, cur_imu in enumerate(imu_mux):
             # Switch mux channel & Read data
-            SW.channel(cur_imu.get_channel())
-            data[i] = [round(d, 3) for d in cur_imu.get_all(start)]
-            # print(getpid(), "Channel#", cur_imu.get_name(), data[i])
+            try:
+                SW.channel(cur_imu.get_channel())
+                startnow = starttime[i]
+                starttime[i] = datetime.datetime.now()
+
+                data[i] = cur_imu.get_all(starttime[i])
+                data[i] = [round(data[i][j],3) for j in range(9)]
+                data_ori[i] = data[i][:]
+
+                
+        
+                if(i != 0):
+                    data[i][:3] = [angle_diff(data[i][j], data[0][j])
+                                   for j in range(3)]
+
+            except (Exception):
+                print("Get channel fail #", cur_imu.get_channel())
+                data[i] = dummy_imu()
+                try:
+                    cur_imu.enable()
+                    time.sleep(2)
+                except (Exception):
+                    print("MUX fail #", cur_imu.get_channel())
+                    
+            print("Channel#", cur_imu.get_name(), data[i][:6])
 
             # # Calculation
             # if len(datas) > windowSize:
@@ -232,53 +232,76 @@ def loop_input():
             # datas.append(data)
 
         # # Export Data through socket/oled
-        # thread_oled = eventlet.spawn_n(background_write_all, data)
         # # fill the missing imu
         data = data + [dummy_imu() for i in range(len(data), 6)]
-        eventlet.spawn_n(background_livedata, data)
+        
+        data_numpy = np.array(data,np.float64)
+        data_numpy = data_numpy[:,0:3]
+        data_back.append(data_numpy)
+        data_different = []
+        if first:
+            old_data = data_numpy
+            first = False
+        if not record and len(data_back) > 2:
+            compare =[angle_diff(old_data[i][j],data_numpy[i][j]) for j in range(len(old_data[i])) for i in range(len(old_data))]
+            compare = np.array(compare,np.float64)
+            if not (compare < threshold).all():
 
+                data_record = []
+                data_record = data_back[:]
+                record = True
+        elif record and len(data_record) < sampleRate: 
+            data_record.append(data_numpy)
+        elif record and len(data_record) == sampleRate:
+            data_different = data_record
+            """
+            for i in range (1,len(data_record)):
+                data_different.append([])
+                for j in range (0,len(data_record[i])):
+                    data_different[i-1].append(data_record[i][j]-data_record[i-1][j])
+            """
+            data_different = np.array(data_different,np.float64)
+            data_different = data_different.tolist()
+            
+            record = False
+        old_data = data_numpy
+        if len(data_back) > 2:
+            del data_back[0]
+        
+        socketio.emit('livedataimu', {'msg': data,'ori': data_ori}, namespace='/web')
+        if len(data_different)>0:
+            # print(data_different)
+            socketio.emit('livedatachange', {'msg': data_different}, namespace='/web')
+        #break
+        """
+        [array([[ 23.38      ,  12.99      ,  28.084     ],                                                      
+       [-83.99911451,  25.70183706, 155.72740222],                                                                     
+       [-66.35508241,  -4.5820823 , 170.98553051],                                                                     
+       [ 35.7890543 ,  27.76963986,  27.22380467],                                                                     
+       [  0.        ,   0.        ,   0.        ],                                                                     
+       [  0.        ,   0.        ,   0.        ]]), array([[ 23.965     ,  13.01      ,  27.467     ],  
+       [-83.91589124,  24.4991844 , 156.05681011],                                                       
+       [-65.0677089 ,  -7.70462221, 173.92434743],                                                       
+       [ 54.01774816,  62.20516642,  38.88790801],                                                       
+       [  0.        ,   0.        ,   0.        ],                                                       
+       [  0.        ,   0.        ,   0.        ]]), array([[ 23.11      ,  12.256     ,  26.977     ],  
+       [-83.81579283,  25.30011393, 156.66581788],                                                       
+       [-63.93555816,  -6.8355401 , 173.73233301],                                                       
+       [ 39.30685128,  41.3812273 ,  35.35754568],                                                       
+       [  0.        ,   0.        ,   0.        ],                                                       
+       [  0.        ,   0.        ,   0.        ]])]    
+
+        """
         # Prepare for the next iteration
-        #print(getpid(), "==================DELAY %f ==================" %   samplePeriod)
+        # print(getpid(), "==================DELAY %f ==================" %   samplePeriod)
         time.sleep(samplePeriod)
-        start = datetime.datetime.now()
-
-
-def background_livedata(data):
-    dataset = data
-    socketio.emit('livedata', {'msg': dataset}, namespace='/web')
 
 
 def background_write_all(data):
-    write_all([header, ','.join(str(round(i)) for i in data[:3]),
+    display.write_all([header, ','.join(str(round(i)) for i in data[:3]),
                ','.join(str(round(i))
                         for i in data[3:6]) if inputSize > 3 else '---',
                ','.join(str(round(i)) for i in data[6:9]) if inputSize > 6 else '---', "Good Luck"])
-
-
-def background_process_accel(newData):
-    global avgData, movingData
-    diff = [0 for i in range(inputSize)]
-    avgData = [sum(map(lambda d: d[i], datas)) /
-               windowSize for i in range(inputSize)]
-    diff = [round(newData[i]-avgData[i]) for i in range(inputSize)]
-    # print(getpid(),'\t'.join([str(round(x)) for x in avgData]))
-
-    for i in range(inputSize):
-        if(abs(diff[i]) > threshold[i]):
-            movingData.append(diff)
-            break
-        elif(i == inputSize-1):
-            if len(movingData) > 0:
-                avgMoving = [round(sum(map(lambda d: d[i], movingData)) /
-                                   len(movingData), 3) for i in range(inputSize)]
-                movingData = []
-                # thread_predict = eventlet.spawn(background_predict, avgMoving)
-                # thread_predict.link(callback_predict)
-                eventlet.spawn_n(background_write_all, avgMoving)
-                # print(getpid(),"Move:", avgMoving)
-
-    # for i in range(3):
-        # if(abs(newData[i]-avgData[i])):
 
 
 def callback_predict(gt, *args, **kwargs):
@@ -298,20 +321,26 @@ def callback_load_model(gt, *args, **kwargs):
 # _____________________________ MAIN ____________________________
 
 def main():
-    global model
+    
     # Init IMU MUX
-    for i in [0, 1, 7]:
+    global display,imu_mux
+    mux_channels = [main_mux_channel,7, 6, 5]
+    for i in mux_channels:
         try:
             SW.channel(i)
             print(getpid(), "Init IMU #", i)
             imu_mux.append(IMU(i))
         except OSError:
+            mux_channels.append(i)
             print(getpid(), "Error Init Channel #", i)
+            
     thread_input = eventlet.spawn_n(loop_input)
 
     # Load keras model
-    model.load()
-    print(model.predictTest())
+    global model
+    if enableML:
+        model.load()
+        print(model.predictTest())
 
     print(getpid(), 'RUNNING')
     socketio.run(app, host='0.0.0.0', port='3000')

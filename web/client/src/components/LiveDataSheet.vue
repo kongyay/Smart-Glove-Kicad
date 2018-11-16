@@ -16,10 +16,10 @@
       <live-data-chart v-for="(value,i) in [6,7,8]" :key='i' :dataset="getDataOne(value)" :minVal="-100" :maxVal="100" :name='getHeadNames[value]' color="#FF00FF"></live-data-chart>
     </v-layout>
     <v-layout row v-if='showFlex'>
-      <live-data-chart v-for="(value,i) in [9,10,11]" :key='i' :dataset="getDataOne(value)" :minVal="0" :maxVal="getMaxVals[i]" :name='getHeadNames[value]' color="#00FFFF"></live-data-chart>
+      <live-data-chart v-for="(value,i) in [9,10,11]" :key='i' :dataset="getDataOne(value)" :minVal="0" :maxVal="100" :name='getHeadNames[value]' color="#00FFFF"></live-data-chart>
     </v-layout>
     <v-layout row v-if='showFlex'>
-      <live-data-chart v-for="(value,i) in [12,13]" :key='i' :dataset="getDataOne(value)" :minVal="0" :maxVal="getMaxVals[i]" :name='getHeadNames[value]' color="#00FFFF"></live-data-chart>
+      <live-data-chart v-for="(value,i) in [12,13]" :key='i' :dataset="getDataOne(value)" :minVal="0" :maxVal="100" :name='getHeadNames[value]' color="#00FFFF"></live-data-chart>
     </v-layout>
     <v-layout row v-if='false'>
       <live-data-table :header="getHeadNames.slice(9,14)" :dataset="getDataFlex" :minVal="0" :maxVal="1023"></live-data-table>

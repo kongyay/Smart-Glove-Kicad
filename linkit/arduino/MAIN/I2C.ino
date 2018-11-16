@@ -64,6 +64,39 @@ void Read_Compass()
   magnetom_z = SENSOR_SIGN[8] * mag.m.z;
 }
 
+void Calculate_Kalman()
+{
+delta_time = (micros() - timestamp) / 1000000;
+ timestamp = micros();
+
+//project the state ahead
+ x = x - delta_time * GX;
+ y = y - delta_time * GY;
+
+//project the error covariance ahead
+ float ptemp = 1.0;
+ px = px + abs(px * delta_time * GX) * ptemp;
+ py = py + abs(py * delta_time * GY) * ptemp;
+
+//compute Kalman Gain
+ kx = px / ( px + 0.003565444 );
+ ky = py / ( py + 0.003565444 );
+
+//Update estimate with measurement
+
+x = x + kx * ( pitch - x);
+ y = y + ky * (roll - y);
+ //Update the error covariance
+ px = (1 - kx) * px;
+ py = (1 - ky) * py;
+
+Serial.print(x);
+Serial.print(" ");
+
+Serial.print(y);
+Serial.print(" ");
+}
+
 void Compass_Heading()
 {
 //  float MAG_X;

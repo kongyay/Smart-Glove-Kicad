@@ -12,8 +12,9 @@ class IMU(object):
         self.name = name or channel
         self.imu = AltIMU()
         self.mag = LIS3MDL()
+
         self.imu.enable()
-        self.mag.enableLIS(magnetometer=True, temperature=False)
+        self.mag.enableLIS(magnetometer=True)
 
         self.imu.calibrateGyroAngles()
 
@@ -24,6 +25,12 @@ class IMU(object):
 
         #print angles
 
+    def enable(self):
+        self.imu.enable()
+        self.mag.enableLIS(magnetometer=True)
+
+        self.imu.calibrateGyroAngles()
+
     def get_name(self):
         return self.name
 
@@ -33,12 +40,16 @@ class IMU(object):
     def get_all(self, start):
         stop = datetime.now() - start
         deltaT = stop.microseconds/1000000.0
-        #print " "
-        #print "Loop:", deltaT
-        #print "Accel:", self.imu.getAccelerometerAngles()
-        #print "Gyro:", self.imu.trackGyroAngles(deltaT = deltaT)
-        dataTuple = self.imu.getAccelerometerAngles()
-        dataTuple.extend(self.imu.getComplementaryAngles(deltaT=deltaT))
-        dataTuple.extend(self.mag.getMagnetometerRaw())
+
+        
+        # kalman = self.imu.getKalmanAngles(deltaT)
+        comple = self.imu.getComplementaryAngles(deltaT)
+
+        # print("Name:",self.name)
+        # print("DeltaT:",deltaT)
+        # print("Accel:", kalman)
+
+        dataTuple = comple + [0,0,0]  + [0,0,0]
+
         return dataTuple
-        # return (0, 0, 0, 0, 0, 0, 0, 0, 0)
+        # return [0, 0, 0, 0, 0, 0, 0, 0, 0]

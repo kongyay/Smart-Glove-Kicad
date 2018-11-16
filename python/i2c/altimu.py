@@ -20,16 +20,15 @@ import math
 
 from constants import *
 from lis3mdl import LIS3MDL
-from lps25h import LPS25H
 from lsm6ds33 import LSM6DS33
 
 
 # Code
-class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
+class AltIMU(LIS3MDL, LSM6DS33):
     """ Class to control Pololu's AltIMU-10v5. """
 
     # Private methods
-    def __init__(self, busId = 0):
+    def __init__(self, busId=0):
         """ Initialize some flags and values. """
         super(AltIMU, self).__init__()
 
@@ -38,7 +37,7 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         self.gyrAngleY = 0.0
         self.gyrAngleZ = 0.0
 
-        ## Initialize Kalman filter variables
+        # Initialize Kalman filter variables
         # Bias values for X, Y, and Z
         self.kalmanBiasX = 0.0
         self.kalmanBiasY = 0.0
@@ -55,46 +54,36 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         self.kalmanY = 0.0
         self.kalmanZ = 0.0
 
-        ## Initialize complementary filter variables
-        self.complementaryAngles = [0,0,0]
+        # Initialize complementary filter variables
+        self.complementaryAngles = [0, 0, 0]
 
     def __del__(self):
         """ Cleanup routine. """
         super(AltIMU, self).__del__()
 
-
     # Public methods
-    def enable(self, accelerometer = True, barometer = False,
-               gyroscope = True, magnetometer = True,
-               temperature = False):
+
+    def enable(self, accelerometer=True,
+               gyroscope=True, magnetometer=True):
         """ Enable the given devices. """
         # Enable LSM6DS33 if accelerometer and/or gyroscope are requested
         if accelerometer or gyroscope:
-            self.enableLSM(accelerometer = accelerometer,
-                           gyroscope = gyroscope,
-                           temperature = temperature)
+            self.enableLSM(accelerometer=accelerometer,
+                           gyroscope=gyroscope)
 
             if gyroscope:
                 # "calibrate" tracked gyroscope angles
                 self.calibrateGyroAngles()
 
-        # Enable LPS25H if barometric pressure or temperature sensors
-        # are requested
-        if barometer or temperature:
-            self.enableLPS()
-
         # Enable LIS3MDL if magnetometer is requested
         if magnetometer:
-            self.enableLIS(magnetometer = magnetometer,
-                           temperature = temperature)
+            self.enableLIS(magnetometer=magnetometer)
 
-
-    def calibrateGyroAngles(self, xCal = 0.0, yCal = 0.0, zCal = 0.0):
+    def calibrateGyroAngles(self, xCal=0.0, yCal=0.0, zCal=0.0):
         """ Calibrate (i.e. set to '0') the tracked gyroscope
             angles. (cf. self.trackGyroAngle())
         """
         self.gyrAngles = [xCal, yCal, zCal]
-
 
     def getGyroRotationRates(self):
         """ Get the rotation rate of the gyroscope for the requested
@@ -113,8 +102,7 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         # Return result vector
         return [gyrRateX, gyrRateY, gyrRateZ]
 
-
-    def trackGyroAngles(self, deltaT = 0.02):
+    def trackGyroAngles(self, deltaT=0.02):
         """ Track gyrometer angle change over time delta deltaT.
             deltaT has to be extremely accurate, otherwise the gyroscope
             values will drift.
@@ -131,7 +119,6 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
 
         return [self.gyrAngleX, self.gyrAngleY, self.gyrAngleZ]
 
-
     def getAccelerometerAngles(self):
         """ Calculate accelerometer angles. """
         # Get raw accelerometer data
@@ -145,8 +132,7 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         # Return vector
         return [accelXAngle, accelYAngle, accelZAngle]
 
-
-    def getComplementaryAngles(self, deltaT = 0.05):
+    def getComplementaryAngles(self, deltaT=0.05):
         """ Calculate combined angles of accelerometer and gyroscope
             using a complementary filter.
             Note: This filter is very cheap CPU-wise, but the result
@@ -154,44 +140,48 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
         """
         # If accelerometer or gyroscope is not enabled or none of the
         # dimensions is requested make a quick turnaround
-        #if not (self.accelerometer and self.gyroscope and (x or y or z)):
+        # if not (self.accelerometer and self.gyroscope and (x or y or z)):
         #    return (None, None, None)
-        
+
         # Get gyroscope rotation rates and accelerometer angles
         gyrRates = self.getGyroRotationRates()
         accelAngles = self.getAccelerometerAngles()
 
         # Determine wether to initialize the complementary filter angles
         # from the accelerometer readings in the first iteration
-        #if self.initComplementaryFromAccel:
+        # if self.initComplementaryFromAccel:
         #    self.complementaryAngles = list(accelAngles)
         #    self.initComplementaryFromAccel = False
 
         # Calculate complementary filtered angles
-        self.complementaryAngles = [None if (gyrRates[i] is None or accelAngles[i] is None)
-            else C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT)
-            + (1 - C_FILTER_CONST) * accelAngles[i]
-            for i in range(3)]
+        for i in range(3):
+            if (gyrRates[i] is None or accelAngles[i] is None):
+                self.complementaryAngles[i] = None 
+            else:
+                self.complementaryAngles[i] = C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT) + (1 - C_FILTER_CONST) * accelAngles[i]
+                if self.complementaryAngles[i] < 0:
+                    self.complementaryAngles[i] = 360+self.complementaryAngles[i]
+                if self.complementaryAngles[i] > 360:
+                    self.complementaryAngles[i] = self.complementaryAngles[i]-360
 
         # Return vector
-        return tuple(self.complementaryAngles)
+        return self.complementaryAngles
 
-
-    def getKalmanAngles(self, deltaT = 0.05):
+    def getKalmanAngles(self, deltaT=0.05):
         """ Calculate combined angles of accelerometer and gyroscope
             using a Kalman filter.
             Note: This filter is complex, but eliminates gyroscope drift
             altogether.
         """
-        def _calculateKalmanAngle(kalmanP_00,
-                                  kalmanP_01,
-                                  kalmanP_10,
-                                  kalmanP_11,
-                                  gyrRate,
-                                  accAngle,
-                                  kalmanBias,
-                                  kalmanAngle,
-                                  deltaT):
+        def _calculateKalmanAngle(  accAngle,
+                                    gyrRate,
+                                    kalmanP_00,
+                                    kalmanP_01,
+                                    kalmanP_10,
+                                    kalmanP_11,
+                                    kalmanBias,
+                                    kalmanAngle,
+                                    deltaT):
             """ Calculate Kalman filtered angle and return updated filter
                 matrix for one dimension.
             """
@@ -207,14 +197,16 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
             # Accelerometer part
             kalY = accAngle - kalmanAngle
             kalS = kalmanP_00 + K_R_ANGLE
+            
             kal0 = kalmanP_00 / kalS
             kal1 = kalmanP_10 / kalS
+            
 
             # Set Kalman filtered angle
-            kalmanAngle +=  kal0 * kalY
+            kalmanAngle += kal0 * kalY
 
             # Re-calculate Kalman parameters
-            kalmanBias +=  kal1 * kalY
+            kalmanBias += kal1 * kalY
             kalmanP_00 -= kal0 * kalmanP_00
             kalmanP_01 -= kal0 * kalmanP_01
             kalmanP_10 -= kal1 * kalmanP_10
@@ -225,7 +217,7 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
 
         # If accelerometer or gyroscope is not enabled or none of the
         # dimensions is requested make a quick turnaround
-        #if not (self.accelerometer and self.gyroscope and (x or y or z)):
+        # if not (self.accelerometer and self.gyroscope and (x or y or z)):
         #    return (None, None, None)
 
         # Get gyroscope rotation rates and accelerometer angles
@@ -234,7 +226,7 @@ class AltIMU(LIS3MDL, LPS25H, LSM6DS33):
 
         # Determine wether to initialize the Kalman angles from the
         # accelerometer readings in the first iteration
-        #if self.initKalmanFromAccel:
+        # if self.initKalmanFromAccel:
         #    self.kalmanAngles = list(accelAngles)
         #    self.initKalmanFromAccel = False
 
