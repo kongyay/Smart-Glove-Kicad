@@ -39,7 +39,7 @@ export default {
     }
   },
   methods: {
-    ...mapMutations(['IMPORT_CAPTURE']),
+    ...mapMutations(['IMPORT_CAPTURE_IMU']),
     loadCSV (isSplit) {
       if (window.FileReader) {
         var reader = new FileReader()
@@ -52,6 +52,7 @@ export default {
           csv.forEach(e => {
             let name = e[e.length - 1]
             e = e.slice(0, -1)
+            e = e.map((x, i) => parseInt(x))
 
             if (name in this.dataRead === false) {
               this.dataRead[name] = []
@@ -83,18 +84,14 @@ export default {
             }
             lastname = name
 
-            if (e.length === 9) {
-              e = e.map((x, i) => parseInt(this.getQuantized(x, i)))
-              e = [...e, 0, 0, 0, 0, 0]
-            } else if (e.length === 5) {
-              e = e.map((x, i) => parseInt(this.getQuantized(x, i + 9)))
-              e = [0, 0, 0, 0, 0, 0, 0, 0, 0, ...e]
+            while (e.length < 18) {
+              e.push(0)
             }
 
-            this.dataRead[name].push(e)
+            this.dataRead[name].push([e.slice(0, 3), e.slice(3, 6), e.slice(6, 9), e.slice(9, 12), e.slice(12, 15), e.slice(15, 18)])
           })
 
-          this.IMPORT_CAPTURE(this.dataRead)
+          this.IMPORT_CAPTURE_IMU(this.dataRead)
           console.log(this.dataRead)
         }
         reader.onerror = (event) => {

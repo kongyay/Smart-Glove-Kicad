@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const state = {
-  isConnected: false,
+
   liveDataStream: [],
   capturedDataStream: {},
   recentDataStream: [],
@@ -73,14 +73,6 @@ const mutations = {
     console.log('REMOVE capturing...')
     delete state.capturedDataStream[name]
   },
-  SOCKET_CONNECT: state => {
-    console.log('connected')
-    state.isConnected = true
-  },
-  SOCKET_DISCONNECT: state => {
-    console.log('disconnected')
-    state.isConnected = false
-  },
   SOCKET_LIVEDATA: (state, [payload]) => {
     // console.log(payload)
     if (state.liveDataStream.length < state.captureSize) {
@@ -142,7 +134,6 @@ const actions = {
 }
 
 const getters = {
-  getConnected: state => state.isConnected,
   getDataAll: state => state.liveDataStream,
   getDataAcc: state => state.liveDataStream.map(d => d.slice(0, 3)),
   getDataGyro: state => state.liveDataStream.map(d => d.slice(3, 6)),

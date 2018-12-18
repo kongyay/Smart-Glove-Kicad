@@ -34,8 +34,10 @@ if enableML:
     model = Model()
 
 # Import DB libs
-from models import Gesture, Pose, Movement, Step
+from models import Gesture, Pose, GestureAction, Action, Profile
 
+# Import NW
+from network import nw
 
 # VARIABLES
 # smallest possible difference
@@ -45,24 +47,6 @@ connectedClients = 0
 # OLED Header
 header = '-([Glove 2 Gesture])-'
 
-# Size of sample/second
-sampleRate = 20
-# Period of capturing each sample
-samplePeriod = 1.0/sampleRate
-# Size of window to slide with samples
-windowSize = 10
-# Input size 3:Ac, 6:AcGy, 9:AGM, 12:AGMF
-inputSize = 6
-# Sliding window of data
-datas = []
-# Average of datas
-avgData = []
-# Difference between new data and avgData
-diff = []
-# Average Moving data since start moving to stop moving
-movingData = []
-# Threshold which one of each value considered as start moving
-threshold = 20
 # MUX Channels
 imu_mux = []
 main_mux_channel = 1
@@ -77,25 +61,25 @@ model_isloaded = True
 def on_connect():
     global connectedClients
     connectedClients += 1
-    print(getpid(), 'Client Connected')
+    print('Client Connected')
 
 
 @socketio.on('disconnect', namespace='/web')
 def on_disconnect():
     global connectedClients
     connectedClients -= 1
-    print(getpid(), 'Client Disconnected')
+    print('Client Disconnected')
 
 
 @socketio.on('ping', namespace='/web')
 def on_ping():
-    print(getpid(), "GOT PING :D :) :P ==========")
+    print("GOT PING :D :) :P ==========")
     socketio.emit('pong', 'This is pong :)', namespace='/web')
 
 
 @socketio.on('resample', namespace='/web')
 def on_resample(gestures, size):
-    print(getpid(), "Resampling...", size)
+    print("Resampling...", size)
     for ges in gestures:
         if(len(gestures[ges][0]) > size):
             # Resample
@@ -110,33 +94,97 @@ def on_resample(gestures, size):
 def on_predict(data):
     if enableML:
         global model
-        result, time_send = model.predictImu([data], None)
-        print(getpid(), time_send, result)
-        if display != None:
-            display.write_row(text=str(result[0]))
-        socketio.emit('predict_result', str(result[0]), namespace='/web')
+        result, time_send = model.predictImu([data], None)    
+    else:
+        result = [1]
+    print(result)
+    if display != None:
+        display.write_row(text=str(result[0]),row=1)
+    socketio.emit('predict_result', str(result[0]), namespace='/web')
 
+@socketio.on('profiles', namespace='/web')
+def on_profile():
+    print("Profiles!")
+    socketio.emit('profiles_result',[i.to_json() for i in Profile.objects],namespace='/web')
+
+@socketio.on('choices', namespace='/web')
+def on_profile():
+    print("All Pose!")
+    socketio.emit('choices_result',[[i.to_json() for i in Pose.objects],[i.to_json() for i in Action.objects],[i.to_json() for i in Gesture.objects]],namespace='/web')
+
+@socketio.on('saveGesture', namespace='/web')
+def on_saveGesture(profile_name,data):
+    print("Save Gesture Request!",profile_name,data)
+    profile = Profile.objects(name=profile_name).first()
+    for i in range(len(profile.gestures_actions)):
+        if data['gesture']['name'] == profile.gestures_actions[i].gesture.name:
+            gesture = Gesture.objects(name=data['gesture']['name']).first()
+            poses = []
+            for np in data['gesture']['poses']:
+                poses.append(Pose.objects(name=np['name']).first())
+                
+            gesture.poses = poses
+            gesture.save()
+            profile.gestures_actions[i].action = Action.objects(name=data['action']['name']).first()
+            profile.gestures_actions[i].args = data['args']
+            profile.save()
+            socketio.emit('save_gesture_result','SAVED',namespace='/web')
+            return
+
+    print("New Gesture!")
+    poses = []
+    for np in data['gesture']['poses']:
+        poses.append(Pose.objects(name=np['name']).first())
+    gesture = Gesture(name=data['gesture']['name'],poses=poses)
+    gesture.save()
+    action = Action.objects(name=data['action']['name']).first()
+    profile.gestures_actions.append(GestureAction(gesture=gesture,action=action,args=data['args']))
+    profile.save()
+    socketio.emit('save_gesture_result','NEW',namespace='/web')
+
+@socketio.on('removeGesture', namespace='/web')
+def on_removeGesture(profile_name,data):
+    print("Remove Gesture Request!",profile_name,data)
+    profile = Profile.objects(name=profile_name).first()
+    for i in range(len(profile.gestures_actions)):
+        if data['gesture']['name'] == profile.gestures_actions[i].gesture.name:
+            gesture = Gesture.objects(name=data['gesture']['name']).first()
+            gesture.delete()
+            
+            socketio.emit('remove_gesture_result','OK',namespace='/web')
+            return
+    print("Gesture not found!")
+    socketio.emit('save_gesture_result','FAIL',namespace='/web')  
 # _____________________________ Flask __________________________________
-
 
 @app.route('/')
 @app.route('/api')
 def index():
     return "Hello World"
 
-@app.route('/gestures')
+@app.route('/profiles')
 def get_gestures():
+    print("Profiles!")
     pose_col = Pose._get_collection()
     ges_col = Gesture._get_collection()
 
-    # step1 = Step(pose=Pose.objects.first(), movement=Movement.objects.first())
-    # print(getpid(),step1)
-    # gesture = Gesture(name="GumGesture", steps=[step1, step1])
-    # print(getpid(),gesture)
-    # gesture.save()
-    gestures = Gesture.objects
 
-    return str([i.to_json() for i in gestures])
+    # pose1 = Pose.objects(name='Close').first()
+    # pose2 = Pose.objects(name='Open').first()
+    # gesture1 = Gesture(name="CloseOpen", poses=[pose1,pose2])
+    # print(getpid(),gesture1)
+    # gesture2 = Gesture(name="OpenClose", poses=[pose2,pose1])
+    # print(getpid(),gesture2)
+    # gesture1.save()
+    # gesture2.save()
+
+    # gesture = Gesture.objects(name="CloseOpen").first()
+    # action = Action.objects(name='Display').first()
+    # profile = Profile(name='Default')
+    # profile.gestures_actions = [GestureAction(gesture=gesture,action=action,args=['GumBear'])]
+    # profile.save()
+
+    return str([i.to_json() for i in Profile.objects]) 
 
 # _____________________________ Functions __________________________________
 
@@ -185,14 +233,35 @@ def dummy_flex():
 
 
 def loop_input():
-    global datas
-    print(getpid(), "Starting input loop...")
+    print("Starting input loop...")
     
-    data_record = []
-    data_back = []
+    # Size of sample/second
     sampleRate = 20
+    # Period of capturing each sample
+    samplePeriod = 1.0/sampleRate
+    # Input size 3:Ac, 6:AcGy, 9:AGM, 12:AGMF
+    inputSize = 6
+    # Sliding data
+    datas = []
+    # Last idle data
+    data_last_idle = []
+    # Moving data since start moving to stop moving
+    datas_moving = []
+    # Threshold which one of each value considered as start moving
+    moving_threshold = 30
+    # Minimum number of same data in sequence that considered as idle
+    idle_min = 20
+    # Counter for idle_min
+    idle_count = 0
+    # Flag to check for each finger to move
+    idle_flags = [True for i in imu_mux]
+    # Flag to check if idle pose changed
+    pose_flag = False
+    
+
     record = False
     first = True
+    
     while True:
         data = [[] for i in imu_mux]
         data_ori = [[] for i in imu_mux]
@@ -201,101 +270,88 @@ def loop_input():
             # Switch mux channel & Read data
             try:
                 SW.channel(cur_imu.get_channel())
-                startnow = starttime[i]
-                starttime[i] = datetime.datetime.now()
-
-                data[i] = cur_imu.get_all(starttime[i])
-                data[i] = [round(data[i][j],3) for j in range(9)]
-                data_ori[i] = data[i][:]
-
-                
-        
-                if(i != 0):
-                    data[i][:3] = [angle_diff(data[i][j], data[0][j])
-                                   for j in range(3)]
-
             except (Exception):
-                print("Get channel fail #", cur_imu.get_channel())
                 data[i] = dummy_imu()
-                try:
-                    cur_imu.enable()
-                    time.sleep(2)
-                except (Exception):
-                    print("MUX fail #", cur_imu.get_channel())
-                    
-            print("Channel#", cur_imu.get_name(), data[i][:6])
+                print("Switch channel fail #", cur_imu.get_channel())
 
-            # # Calculation
-            # if len(datas) > windowSize:
-            #     eventlet.spawn_n(background_process_accel, data)
-            #     datas = datas[1:]
-            # datas.append(data)
+            data[i],starttime[i] = cur_imu.get_all(starttime[i])
+            data[i] = [round(data[i][j],3) for j in range(3)]
+            data_ori[i] = data[i][:]
+
+
+
+            # find differences between fingers and center
+            # if(i != 0):
+            #     bound = [30,90,30]
+            #     diff_data = data[:]
+            #     for j in range(3):
+            #         diff_data[i][j] = angle_diff(data[i][j], data[0][j])
+            #         if diff_data[i][j] > bound[j] or diff_data[i][j] < -bound[j]:
+            #             if data[i][j] > data[0][j]:
+            #                 data[i][j] = 100
+            #             else:
+            #                 data[i][j] = -100
+            #         else:
+            #             data[i][j] = 0
+                    # if diff_data[i][j] > bound[j] or diff_data[i][j] < -bound[j]:
+                    #     data[i][j] = 200
+                    # elif diff_data[i][j] > bound[j]/2 or diff_data[i][j] < -bound[j]/2:
+                    #     data[i][j] = 100
+                    # else:
+                    #     data[i][j] = 0
+
+
+            # # Smooth out
+            # if len(datas) > 0:
+            #     if all(abs(angle_diff(data[i][j],datas[-1][i][j])) < moving_threshold for j in range(3)):
+            #         data[i] = datas[-1][i]
+            #         idle_flags[i] = True
+            #     else:
+            #         # # if not all axes in a finger in idle, set idle = False
+            #         idle_flags[i] = False
+
+            #print("Channel#", cur_imu.get_name(), data[i])
 
         # # Export Data through socket/oled
         # # fill the missing imu
         data = data + [dummy_imu() for i in range(len(data), 6)]
-        
-        data_numpy = np.array(data,np.float64)
-        data_numpy = data_numpy[:,0:3]
-        data_back.append(data_numpy)
-        data_different = []
-        if first:
-            old_data = data_numpy
-            first = False
-        if not record and len(data_back) > 2:
-            compare =[angle_diff(old_data[i][j],data_numpy[i][j]) for j in range(len(old_data[i])) for i in range(len(old_data))]
-            compare = np.array(compare,np.float64)
-            if not (compare < threshold).all():
 
-                data_record = []
-                data_record = data_back[:]
-                record = True
-        elif record and len(data_record) < sampleRate: 
-            data_record.append(data_numpy)
-        elif record and len(data_record) == sampleRate:
-            data_different = data_record
-            """
-            for i in range (1,len(data_record)):
-                data_different.append([])
-                for j in range (0,len(data_record[i])):
-                    data_different[i-1].append(data_record[i][j]-data_record[i-1][j])
-            """
-            data_different = np.array(data_different,np.float64)
-            data_different = data_different.tolist()
-            
-            record = False
-        old_data = data_numpy
-        if len(data_back) > 2:
-            del data_back[0]
-        
-        socketio.emit('livedataimu', {'msg': data,'ori': data_ori}, namespace='/web')
-        if len(data_different)>0:
-            # print(data_different)
-            socketio.emit('livedatachange', {'msg': data_different}, namespace='/web')
-        #break
-        """
-        [array([[ 23.38      ,  12.99      ,  28.084     ],                                                      
-       [-83.99911451,  25.70183706, 155.72740222],                                                                     
-       [-66.35508241,  -4.5820823 , 170.98553051],                                                                     
-       [ 35.7890543 ,  27.76963986,  27.22380467],                                                                     
-       [  0.        ,   0.        ,   0.        ],                                                                     
-       [  0.        ,   0.        ,   0.        ]]), array([[ 23.965     ,  13.01      ,  27.467     ],  
-       [-83.91589124,  24.4991844 , 156.05681011],                                                       
-       [-65.0677089 ,  -7.70462221, 173.92434743],                                                       
-       [ 54.01774816,  62.20516642,  38.88790801],                                                       
-       [  0.        ,   0.        ,   0.        ],                                                       
-       [  0.        ,   0.        ,   0.        ]]), array([[ 23.11      ,  12.256     ,  26.977     ],  
-       [-83.81579283,  25.30011393, 156.66581788],                                                       
-       [-63.93555816,  -6.8355401 , 173.73233301],                                                       
-       [ 39.30685128,  41.3812273 ,  35.35754568],                                                       
-       [  0.        ,   0.        ,   0.        ],                                                       
-       [  0.        ,   0.        ,   0.        ]])]    
+        # # Check for changes
+        if not all(idle_flags):
+            datas_moving.append(data)
+            socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
+            pose_flag = True
+        else:
+            # # if idle
+            datas_moving = []
+            idle_count += 1
+            # # if pose changed
+            socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
+            if pose_flag and idle_count >= idle_min:
+                socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':True}, namespace='/web')
+                data_last_idle = data
+                pose_flag = False
+                idle_count = 0
 
-        """
+        # # Keep data_back in size of sampleRate
+        if len(datas) > sampleRate:
+            datas = datas[1:]
+        datas.append(data)
+
+        # socketio.emit('live_imu', {'msg': data,'ori': data_ori}, namespace='/web')
+        
+
         # Prepare for the next iteration
-        # print(getpid(), "==================DELAY %f ==================" %   samplePeriod)
+        # print("==================DELAY %f ==================" %   samplePeriod)
         time.sleep(samplePeriod)
 
+def loop_ipcheck():
+    while True:
+        old_ip = str(nw.ip)
+        new_ip = str(nw.get_ip())
+        disp_text = new_ip + ('*' if old_ip != new_ip else '')
+        display.write_row(text=(disp_text))
+        time.sleep(10)
 
 def background_write_all(data):
     display.write_all([header, ','.join(str(round(i)) for i in data[:3]),
@@ -308,14 +364,14 @@ def callback_predict(gt, *args, **kwargs):
     """ Callback for prediction """
     result, time_send = gt.wait()
     if result[0] != 5:
-        print(getpid(), time_send, result)
+        print(time_send, result)
 
 
 def callback_load_model(gt, *args, **kwargs):
     global model_isloaded
     """ Callback for model loading """
-    print(getpid(), "Model is loaded !!")
-    model_isloaded = True
+    print("Model is loaded !!")
+    model_isloaded = True 
 
 
 # _____________________________ MAIN ____________________________
@@ -324,17 +380,20 @@ def main():
     
     # Init IMU MUX
     global display,imu_mux
-    mux_channels = [main_mux_channel,7, 6, 5]
-    for i in mux_channels:
+    mux_channels = [main_mux_channel,7, 6, 5, 4, 3]
+    for i,channel in enumerate(mux_channels):
         try:
-            SW.channel(i)
-            print(getpid(), "Init IMU #", i)
-            imu_mux.append(IMU(i))
+            SW.channel(channel)
+            print("Init IMU #", channel)
+            imu_mux.append(IMU(channel,i))
         except OSError:
-            mux_channels.append(i)
-            print(getpid(), "Error Init Channel #", i)
+            mux_channels.append(channel)
+            print("Error Init Channel #", channel)
             
     thread_input = eventlet.spawn_n(loop_input)
+
+    # Init Network
+    thread_ipchange = eventlet.spawn_n(loop_ipcheck)
 
     # Load keras model
     global model
@@ -342,7 +401,7 @@ def main():
         model.load()
         print(model.predictTest())
 
-    print(getpid(), 'RUNNING')
+    print('RUNNING')
     socketio.run(app, host='0.0.0.0', port='3000')
 
 

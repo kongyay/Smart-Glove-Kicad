@@ -83,7 +83,7 @@ class AltIMU(LIS3MDL, LSM6DS33):
         """ Calibrate (i.e. set to '0') the tracked gyroscope
             angles. (cf. self.trackGyroAngle())
         """
-        self.gyrAngles = [xCal, yCal, zCal]
+        self.gyrAngleX,self.gyrAngleY,self.gyrAngleZ = [xCal, yCal, zCal]
 
     def getGyroRotationRates(self):
         """ Get the rotation rate of the gyroscope for the requested
@@ -119,7 +119,7 @@ class AltIMU(LIS3MDL, LSM6DS33):
 
         return [self.gyrAngleX, self.gyrAngleY, self.gyrAngleZ]
 
-    def getAccelerometerAngles(self):
+    def getAccelerometerAngles(self,name=0):
         """ Calculate accelerometer angles. """
         # Get raw accelerometer data
         [accelXRaw, accelYRaw, accelZRaw] = self.getAccelerometerRaw()
@@ -129,10 +129,19 @@ class AltIMU(LIS3MDL, LSM6DS33):
         accelYAngle = math.degrees(math.atan2(accelXRaw, accelZRaw) + math.pi)
         accelZAngle = math.degrees(math.atan2(accelXRaw, accelYRaw) + math.pi)
 
-        # Return vector
-        return [accelXAngle, accelYAngle, accelZAngle]
+        data = [accelXAngle, accelYAngle, accelZAngle]
 
-    def getComplementaryAngles(self, deltaT=0.05):
+        # angle recalculation according to human's normal gesture
+        for i in range(3):
+            if ANGLE_BP[name][i]<=data[i]<=360:
+                data[i] -= ANGLE_BP[name][i]
+            else:
+                data[i] += 360-ANGLE_BP[name][i]
+
+        # Return vector
+        return data
+
+    def getComplementaryAngles(self, deltaT=0.05,name=0):
         """ Calculate combined angles of accelerometer and gyroscope
             using a complementary filter.
             Note: This filter is very cheap CPU-wise, but the result
@@ -145,7 +154,7 @@ class AltIMU(LIS3MDL, LSM6DS33):
 
         # Get gyroscope rotation rates and accelerometer angles
         gyrRates = self.getGyroRotationRates()
-        accelAngles = self.getAccelerometerAngles()
+        accelAngles = self.getAccelerometerAngles(name)
 
         # Determine wether to initialize the complementary filter angles
         # from the accelerometer readings in the first iteration
@@ -154,15 +163,15 @@ class AltIMU(LIS3MDL, LSM6DS33):
         #    self.initComplementaryFromAccel = False
 
         # Calculate complementary filtered angles
+        C_FILTER_CONST = 0.6
         for i in range(3):
             if (gyrRates[i] is None or accelAngles[i] is None):
                 self.complementaryAngles[i] = None 
             else:
-                self.complementaryAngles[i] = C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT) + (1 - C_FILTER_CONST) * accelAngles[i]
-                if self.complementaryAngles[i] < 0:
-                    self.complementaryAngles[i] = 360+self.complementaryAngles[i]
-                if self.complementaryAngles[i] > 360:
-                    self.complementaryAngles[i] = self.complementaryAngles[i]-360
+                if(abs(accelAngles[i]-self.complementaryAngles[i]) > 300):
+                    self.complementaryAngles[i] = accelAngles[i]
+                else:
+                    self.complementaryAngles[i] = C_FILTER_CONST * (self.complementaryAngles[i] + gyrRates[i] * deltaT) + (1 - C_FILTER_CONST) * accelAngles[i]
 
         # Return vector
         return self.complementaryAngles

@@ -15,40 +15,50 @@ class Pose(Document):
         jsonObj["pic"] = self.pic or ""
         return jsonObj
 
+class Gesture(Document):
+    name = StringField(max_length=60, required=True, unique=True)
+    poses = ListField(ReferenceField(Pose), required=True)
 
-class Movement(Document):
+    def to_json(self):
+        jsonObj = {}
+        jsonObj["name"] = self.name
+        jsonObj["poses"] = []
+        for p in self.poses:
+            jsonObj["poses"].append(p.to_json())
+        return jsonObj
+
+class Action(Document):
     name = StringField(max_length=60, required=True, unique=True)
     pic = URLField(max_length=500)
-
+    
     def to_json(self):
         jsonObj = {}
         jsonObj["name"] = self.name
         jsonObj["pic"] = self.pic or ""
-
         return jsonObj
 
-
-class Step(EmbeddedDocument):
-    name = StringField(max_length=60)
-    pose = ReferenceField(Pose, required=True)
-    movement = ReferenceField(Movement, required=True)
+class GestureAction(EmbeddedDocument):
+    gesture = ReferenceField(Gesture, required=True)
+    action = ReferenceField(Action, required=True)
+    args = ListField(StringField(max_length=500))
 
     def to_json(self):
         jsonObj = {}
-        jsonObj["name"] = self.name or ""
-        jsonObj["pose"] = self.pose.to_json()
-        jsonObj["movement"] = self.movement.to_json()
+        jsonObj["gesture"] = self.gesture.to_json()
+        jsonObj["action"] = self.action.to_json()
+        jsonObj["args"] = []
+        for a in self.args:
+            jsonObj["args"].append(a)
         return jsonObj
 
-
-class Gesture(Document):
+class Profile(Document):
     name = StringField(max_length=60, required=True, unique=True)
-    steps = ListField(EmbeddedDocumentField(Step), required=True)
+    gestures_actions = ListField(EmbeddedDocumentField(GestureAction), required=True)
 
     def to_json(self):
         jsonObj = {}
         jsonObj["name"] = self.name
-        jsonObj["steps"] = []
-        for s in self.steps:
-            jsonObj["steps"].append(s.to_json())
+        jsonObj["gestures_actions"] = []
+        for ga in self.gestures_actions:
+            jsonObj["gestures_actions"].append(ga.to_json())
         return jsonObj

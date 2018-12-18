@@ -1,13 +1,34 @@
 <template>
   <v-container fluid>
-    <gesture-box name="Gesture 1"></gesture-box>
-    <gesture-box name="Gesture 2"></gesture-box>
+    <div v-if="getCurrentProfile.name !== 'NONE'">
+      <gesture-box v-for="(ges,i) in getCurrentProfile.gestures_actions" :key=i :profile_name='getCurrentProfile.name' :gestureAction="ges"></gesture-box>
+      <v-btn color='secondary' @click='addGesture'>Add</v-btn>
+    </div>
   </v-container>
 </template>
 
 <script>
 import GestureBox from '../GestureBox.vue'
+import { mapGetters, mapMutations } from 'vuex'
 export default {
+  data () {
+    return {
+
+    }
+  },
+  computed: {
+    ...mapGetters(['getCurrentProfile', 'getChoicePose', 'getChoiceAction'])
+  },
+  methods: {
+    ...mapMutations(['ADD_GESTURE']),
+    addGesture () {
+      console.log('ADD Gesture')
+      let newname = prompt('Please enter gesture name:', '')
+      if (newname !== null && newname !== '') {
+        this.ADD_GESTURE(newname)
+      }
+    }
+  },
   components: {
     GestureBox
   }

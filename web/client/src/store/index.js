@@ -1,7 +1,6 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
-import flex from './modules/flexStore'
 import allimu from './modules/allimuStore'
 import user from './modules/userStore'
 
@@ -19,7 +18,6 @@ Vue.use(Vuex)
 // }
 export default new Vuex.Store({
   modules: {
-    flex,
     allimu,
     user
   }

@@ -8,17 +8,18 @@
             <v-layout column justify-center>
               <v-layout row>
                 <h4>Include Sensors</h4>
-                <v-checkbox label="Acc" v-model="includeAcc"></v-checkbox>
-                <v-checkbox label="Gyro" v-model="includeGyro"></v-checkbox>
-                <v-checkbox label="Mag" v-model="includeMag"></v-checkbox>
-                <v-checkbox label="Flex" v-model="includeFlex"></v-checkbox>
+                <v-checkbox v-for='(val,i) in includeSensor' :key=i :label="getHeadNamesIMU[i]" v-model="includeSensor[i]"></v-checkbox>
+              </v-layout>
+              <v-layout row>
+                <h4>Include Axis</h4>
+                <v-checkbox v-for='(val,i) in includeAxis' :key=i :label="String(i)" v-model="includeAxis[i]"></v-checkbox>
               </v-layout>
               <v-layout row>
                 <h4>Include Gestures</h4>
-                <v-btn @click="includeGestures = Object.keys(getCapturedDataStream)">All</v-btn>
+                <v-btn @click="includeGestures = Object.keys(getCapturedDataStreamIMU)">All</v-btn>
                 <v-select
                   v-model="includeGestures"
-                  :items="Object.keys(getCapturedDataStream)"
+                  :items="Object.keys(getCapturedDataStreamIMU)"
                   chips
                   multiple
                 ></v-select>
@@ -27,7 +28,7 @@
                 <h4>Format</h4>
                 <v-radio-group v-model="format">
                   <v-radio label="CSV" value="CSV"></v-radio>
-                  <v-radio label="JSON" value="JSON"></v-radio>
+                  <v-radio label="JSON" value="JSON" disabled></v-radio>
                 </v-radio-group>
               </v-layout>
               <v-layout row>
@@ -47,16 +48,14 @@ export default {
   data () {
     return {
       panelOpen: false,
-      includeAcc: true,
-      includeGyro: true,
-      includeMag: true,
-      includeFlex: true,
+      includeSensor: [true, true, true, true, true, true],
+      includeAxis: [true, true, true],
       format: 'CSV',
       includeGestures: []
     }
   },
   computed: {
-    ...mapGetters(['getDataAll', 'isCapturing', 'getRecentDataStream', 'getCapturedDataStream'])
+    ...mapGetters(['getDataAll', 'isCapturing', 'getRecentDataStreamIMU', 'getCapturedDataStreamIMU', 'getHeadNamesIMU'])
   },
   methods: {
     exportCSV () {
@@ -70,20 +69,16 @@ export default {
       // (this.includeMag ? ',magX,magY,magZ' : '') +
       // (this.includeFlex ? ',flex1,flex2,flex3,flex4,flex5' : '') + ',gesture\n'
       for (let gesture of this.includeGestures) {
-        for (let row of this.getCapturedDataStream[gesture]) {
-          if (!this.includeFlex) {
-            row.splice(9, 5)
+        for (let row of this.getCapturedDataStreamIMU[gesture]) {
+          // row = [[finger],[finger],....]
+          for (let i = this.includeSensor.length; i > 0; i--) {
+            row = this.includeSensor[i] ? row : row.slice(0, i).concat(row.slice(i + 1))
           }
-          if (!this.includeMag) {
-            row.splice(6, 3)
+          for (let i = this.includeAxis.length; i > 0; i--) {
+            row = this.includeAxis[i] ? row : row.map(a => this.includeAxis[i] ? a : a.slice(0, i).concat(a.slice(i + 1)))
           }
-          if (!this.includeGyro) {
-            row.splice(3, 3)
-          }
-          if (!this.includeAcc) {
-            row.splice(0, 3)
-          }
-          csvContent += [...row, gesture.split('.')[0]].join(',') + '\n'
+          row = row.map(r => r.slice(0, 3))
+          csvContent += [...[...row], gesture.split('.')[0]].join(',') + '\n'
         }
       }
       console.log(csvContent)
@@ -97,7 +92,7 @@ export default {
     }
   },
   watch: {
-    'getCapturedDataStream': {
+    'getCapturedDataStreamIMU': {
       handler: function (val, oldVal) {
         // console.log(val)
       },

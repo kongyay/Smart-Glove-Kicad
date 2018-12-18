@@ -214,7 +214,7 @@ class LSM6DS33(I2C):
 
 
     def getGyroscopeRaw(self):
-        """ Return a 3-dimensional vector (list) of raw accelerometer
+        """ Return a 3-dimensional vector (list) of raw gyro
             data.
         """
         # Check if gyroscope has been enabled
@@ -222,7 +222,7 @@ class LSM6DS33(I2C):
             raise(Exception('Gyroscope has to be enabled first'))
 
         # Read sensor data
-        return self._getSensorRawLoHi3(LSM6DS33_ADDR, self.lsmAccRegisters)
+        return self._getSensorRawLoHi3(LSM6DS33_ADDR, self.lsmGyroRegisters)
 
 
     def getIMURaw(self):

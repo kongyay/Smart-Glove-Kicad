@@ -1,11 +1,6 @@
 <template>
 
   <v-card>
-        <img
-          src="@/assets/user.png"
-          aspect-ratio="2.75"
-        />
-
         <v-card-title primary-title>
           <div>
             <h3 class="headline mb-0">User</h3>
@@ -13,7 +8,8 @@
         </v-card-title>
 
         <v-select
-          :items="getProfiles"
+          v-model="currentProfileName"
+          :items="getProfileList"
           box
           label="Profiles"
         ></v-select>
@@ -25,7 +21,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { mapGetters, mapMutations } from 'vuex'
 export default {
   data () {
     return {
@@ -33,7 +29,19 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getProfiles'])
+    ...mapGetters(['getProfileList', 'getCurrentProfile']),
+
+    currentProfileName: {
+      get: function () {
+        return this.getCurrentProfile.name
+      },
+      set: function (newProfile) {
+        this.CHANGE_PROFILE(newProfile)
+      }
+    }
+  },
+  methods: {
+    ...mapMutations(['CHANGE_PROFILE'])
   }
 }
 </script>

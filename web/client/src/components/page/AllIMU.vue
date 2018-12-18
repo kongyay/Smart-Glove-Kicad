@@ -1,7 +1,7 @@
 <template>
   <v-container fluid>
     <v-slide-y-transition mode="out-in">
-      <live-data-sheet-all-i-m-u :data-stream='dataStream' :dataBG='dataBG'></live-data-sheet-all-i-m-u>
+      <live-data-sheet :data-stream='dataStream' :dataBG='dataBG'></live-data-sheet>
     </v-slide-y-transition>
 
     <v-layout row wrap>
@@ -49,17 +49,17 @@
       <v-btn block :large='i===0' :outline='i!=0' color="green" class='display-1'>{{gestureName[parseInt(val)-1]}}</v-btn>
     </v-layout>
 
-    <import-box-i-m-u></import-box-i-m-u>
-    <export-box-i-m-u></export-box-i-m-u>
+    <import-box></import-box>
+    <export-box></export-box>
 
   </v-container>
 </template>
 
 <script>
 import {mapGetters, mapMutations, mapActions} from 'vuex'
-import LiveDataSheetAllIMU from '../LiveDataSheetAllIMU.vue'
-import ExportBoxIMU from '../ExportBoxIMU.vue'
-import ImportBoxIMU from '../ImportBoxIMU.vue'
+import LiveDataSheet from '../LiveDataSheet.vue'
+import ExportBox from '../ExportBox.vue'
+import ImportBox from '../ImportBox.vue'
 
 export default {
   data () {
@@ -175,7 +175,7 @@ export default {
       }
     }
   },
-  components: {LiveDataSheetAllIMU, ExportBoxIMU, ImportBoxIMU}
+  components: {LiveDataSheet, ExportBox, ImportBox}
 }
 </script>
 

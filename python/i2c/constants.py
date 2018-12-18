@@ -16,7 +16,7 @@
 LIS3MDL_ADDR = 0x1e      # Magnetometer
 LSM6DS33_ADDR = 0x6b      # Gyrometer / accelerometer
 
-C_FILTER_CONST = 0.1      # Complementary filter constant (default 0.6)
+C_FILTER_CONST = 0.6      # Complementary filter constant (default 0.6)
 
 # Used by the Kalman filter
 K_Q_ANGLE = 0.01
@@ -25,3 +25,6 @@ K_R_ANGLE = 0.01
 
 # Gyroscope dps/LSB for 1000 dps full scale
 GYRO_GAIN = 0.035
+
+# Breakpoints for each axes that use for angle recalculations
+ANGLE_BP = [[270,110,110],[180,110,110],[250,110,110],[250,110,110],[250,110,110],[250,110,110]]

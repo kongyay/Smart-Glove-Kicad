@@ -5,18 +5,16 @@ const state = {
   recentDataStream_IMU: [],
   capturing_IMU: false,
   headNames_IMU: [
-    'AccX',
-    'AccY',
-    'AccZ',
-    'GyrX',
-    'GyrY',
-    'GyrZ',
-    'MagX',
-    'MagY',
-    'MagZ'
+    'มือ',
+    'โป้ง',
+    'ชี้',
+    'กลาง',
+    'นาง',
+    'ก้อย'
   ],
   lastPredictDataStream_IMU: [],
-  lastPredictHistory_IMU: []
+  lastPredictHistory_IMU: [],
+  idlePoints: []
 }
 
 const mutations = {
@@ -32,6 +30,9 @@ const mutations = {
   SAVE_CAPTURE_IMU: (state, name) => {
     if (state.recentDataStream_IMU.length === 0) {
       return
+    }
+    while (state.recentDataStream_IMU.length < 20) {
+      state.recentDataStream_IMU.push(state.recentDataStream_IMU.slice(-1)[0])
     }
     console.log('SAVE capturing...')
     let i = 1
@@ -65,20 +66,32 @@ const mutations = {
     delete state.capturedDataStream_IMU[name]
   },
   // socket connection
-  SOCKET_LIVEDATAIMU: (
+  SOCKET_LIVE_IMU: (
     state, [payload]) => {
     if (state.liveDataStream_IMU.length < 20) {
       state.liveDataStream_IMU.push(payload.msg)
       state.liveRawStream_IMU.push(payload.ori)
+      state.idlePoints.push(payload.idle ? 'green' : 'red')
     } else {
       state.liveDataStream_IMU.shift()
       state.liveDataStream_IMU.push(payload.msg)
       state.liveRawStream_IMU.shift()
       state.liveRawStream_IMU.push(payload.ori)
+      state.idlePoints.shift()
+      state.idlePoints.push(payload.idle ? 'green' : 'red')
+      // if (payload.idle) {
+      //   let mapped = state.liveDataStream_IMU.map(d => [...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), ...d[4].slice(0, 2), ...d[5].slice(0, 2)])
+      //   console.log('predict', mapped)
+      //   global.vm.$socket.emit('predict', mapped)
+      // }
     }
     if (state.capturing_IMU) {
       state.recentDataStream_IMU.push(payload.msg)
     }
+  },
+  SOCKET_LIVE_IDLE: (
+    state, [payload]) => {
+    console.log(payload)
   },
   SOCKET_PREDICT_RESULT: (
     state, [payload]) => {
@@ -111,9 +124,14 @@ const actions = {
   manualPredictIMU: ({
     state
   }, payload) => {
+    while (payload.length < 20) {
+      payload.push(payload.slice(-1)[0])
+    }
     state.lastPredictDataStream_IMU = payload.slice()
-    let mapped = payload.map(d => [...d[1].slice(0, 3), ...d[2].slice(0, 3), ...d[3].slice(0, 3), ...d[4].slice(0, 3), ...d[5].slice(0, 3)])
-    console.log('predict')
+    console.log('pre', payload)
+    // let mapped = payload.map(d => [...d[0].slice(0, 2), ...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), 0, 0, 0, 0])
+    let mapped = payload.map(d => [...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), ...d[4].slice(0, 2), ...d[5].slice(0, 2)])
+    console.log('predict', mapped)
     global.vm.$socket.emit('predict', mapped)
   }
 }
@@ -129,7 +147,8 @@ const getters = {
   getRecentDataStreamSizeIMU: state => state.recentDataStream_IMU.length,
   isCapturingIMU: state => state.capturing_IMU,
   getLastPredictDataStreamIMU: state => state.lastPredictDataStream_IMU,
-  getLastPredictHistoryIMU: state => state.lastPredictHistory_IMU
+  getLastPredictHistoryIMU: state => state.lastPredictHistory_IMU,
+  getIdlePoints: state => state.idlePoints
 }
 
 const module = {

@@ -1,93 +1,154 @@
 <template>
   <v-container>
-    <v-card color="blue-grey darken-2" class="white--text">
+    <v-card>
       <v-card-title primary-title>
-        <div class="headline">{{name}}</div>
+        <div class="headline">{{gesture.name}}</div>
+        <v-spacer></v-spacer>
+        <v-btn color='orange' @click='addPose'>+ Add Pose</v-btn>
+        <v-btn color='green' @click='saveGesture'><v-icon>save</v-icon></v-btn>
+        <v-btn color='red' @click='removeGesture'><v-icon>delete_forever</v-icon></v-btn>
       </v-card-title>
 
-        <v-stepper v-model='currentStep'>
-          <v-stepper-header>
-            <template v-for="(step,i) in steps">
-              <v-stepper-step
-                :complete="i+1 === currentStep"
-                :key="`${i+1}-step`"
-                :step="i+1"
-                editable
-              >
-                {{step.name}}
-              </v-stepper-step>
-
-              <v-divider
-                v-if="i+1 !== steps.length"
-                :key="i+1"
-              ></v-divider>
-            </template>
-          </v-stepper-header>
-
-          <v-stepper-items>
-            <v-stepper-content
-              v-for="(step,i) in steps"
-              :key="`${i+1}-content`"
-              :step="i+1"
-            >
-
-              <v-layout row align-center justify-center fill-height>
-                <v-flex xs3 >
-                  <img src='@/assets/left.png'/>
-                </v-flex>
-                <v-flex>
-                  <v-layout column>
-                  <v-select
-                    :items="[step.pose]"
+      <v-expansion-panel>
+        <v-expansion-panel-content
+          v-for="(pose,i) in poses"
+          :key="i"
+        >
+          <div slot="header"><b>{{i}}). </b> {{ pose.name }}</div>
+          <v-card>
+            <v-layout>
+              <v-flex xs5>
+                <v-img
+                  :src='pose.pic'
+                  height="125px"
+                  contain
+                ></v-img>
+              </v-flex>
+              <v-flex xs7>
+                <v-card-title primary-title>
+                  <v-select v-if="getChoicePose.length>0"
+                    :value="pose.name"
+                    @change="editPose($event,i)"
+                    :items="getChoicePose.map(c=>c.name)"
                     label="Pose"
                   ></v-select>
-                  <v-select
-                    :items="[step.movement]"
-                    label="Movement"
-                  ></v-select>
-                  </v-layout>
-                </v-flex>
+                </v-card-title>
+              </v-flex>
+            </v-layout>
+            <v-divider light></v-divider>
+            <v-card-actions class="pa-3" v-if="poses.length>1">
+              <v-spacer></v-spacer>
+              <v-btn color='red' flat  @click='removePose(i)'>Remove</v-btn>
+            </v-card-actions>
+          </v-card>
+
+        </v-expansion-panel-content>
+        <v-expansion-panel-content>
+          <div slot="header">Action</div>
+          <v-container>
+            <v-layout column>
+
+              <v-flex>
+                <v-select v-if="getChoiceAction.length>0"
+                  :items="getChoiceAction.map(c=>c.name)"
+                  :value="action.name"
+                  @change="editAction"
+                  label="Action"
+                  outline
+                ></v-select>
+              </v-flex>
+
+              <v-flex>
+                <v-layout wrap>
+                  <v-flex xs12 v-if='action.name==="Display"'>
+                    <v-textarea
+                      label="Text"
+                      v-model="gestureAction.args[0]"
+                    ></v-textarea>
+                  </v-flex>
+                  <v-flex xs12 v-else-if='action.name==="Http"'>
+                    <v-text-field
+                      label="URL"
+                      v-model="gestureAction.args[0]"
+                    ></v-text-field>
+                    <v-textarea
+                      label="Body"
+                      v-model="gestureAction.args[1]"
+                    ></v-textarea>
+                  </v-flex>
                 </v-layout>
+              </v-flex>
 
-              <v-btn
-                color="primary"
-                @click="editStep(step)"
-              >
-                Edit Step
-              </v-btn>
+            </v-layout>
+          </v-container>
 
-              <v-btn color='red' flat>Remove</v-btn>
+        </v-expansion-panel-content>
+      </v-expansion-panel>
 
-            </v-stepper-content>
-          </v-stepper-items>
-        </v-stepper>
-
-      <v-card-actions>
-        <v-btn flat dark>Edit Gesture</v-btn>
-      </v-card-actions>
     </v-card>
   </v-container>
 </template>
 
 <script>
-
+import { mapGetters, mapMutations } from 'vuex'
 export default {
   props: {
-    name: String
+    profile_name: String,
+    gestureAction: Object
   },
   data () {
     return {
-      steps: [{name: 'Swipe Left', pose: 'Open', movement: 'Left'}, {name: 'Heart', pose: 'Miniheart', movement: 'Idle'}, {name: 'Step 3', pose: 'Miniheart', movement: 'Idle'}, {name: 'Step 4', pose: 'Miniheart', movement: 'Idle'}, {name: 'Step 5', pose: 'Miniheart', movement: 'Idle'}],
-      currentStep: 1
+      isOpen: {}
+    }
+  },
+  computed: {
+    ...mapGetters(['getChoicePose', 'getChoiceAction', 'getChoiceGesture']),
+    gesture () {
+      return this.gestureAction.gesture
+    },
+    action () {
+      return this.gestureAction.action
+    },
+    args () {
+      return this.gestureAction.args
+    },
+    poses () {
+      return this.gestureAction.gesture.poses
     }
   },
   methods: {
-    goStep (name) {
-      this.currentStep = name
+    ...mapMutations(['REMOVE_GESTURE']),
+    goPose (name) {
+      this.currentPose = name
     },
-    editStep (name) {
-      console.log('Edit', name)
+    editPose (name, i) {
+      this.gestureAction.gesture.poses[i] = this.getChoicePose.find(c => c.name === name)
+      this.$forceUpdate()
+    },
+    editAction (name) {
+      this.gestureAction.action = this.getChoiceAction.find(c => c.name === name)
+      this.$forceUpdate()
+    },
+    saveGesture () {
+      console.log('Saving Gesture....')
+      this.$socket.emit('saveGesture', this.profile_name, this.gestureAction)
+    },
+    removeGesture () {
+      if (confirm(`Are you sure you want to remove "${this.gesture.name}"?`)) {
+        this.REMOVE_GESTURE(this.gesture.name)
+      } else {
+        // Do nothing!
+      }
+    },
+    addPose () {
+      this.gestureAction.gesture.poses.push(this.getChoicePose[0])
+    },
+    removePose (i) {
+      this.gestureAction.gesture.poses.splice(i, 1)
     }
+  },
+  components: {
+
   }
 }
 </script>
