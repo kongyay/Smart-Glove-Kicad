@@ -5,7 +5,10 @@ const state = {
   currentProfile: {name: 'NONE'},
   choicePose: [],
   choiceAction: [],
-  choiceGesture: []
+  choiceGesture: [],
+  connections: [],
+  snackbarText: '',
+  snackbarEnabled: false
 }
 
 const mutations = {
@@ -78,18 +81,34 @@ const mutations = {
   SOCKET_SAVE_GESTURE_RESULT: (
     state, [payload]) => {
     console.log('Save Gesture Result:', payload)
+    state.snackbarText = payload
+    state.snackbarEnabled = true
   },
   SOCKET_REMOVE_GESTURE_RESULT: (
     state, [payload]) => {
     console.log('Remove Gesture Result:', payload)
+    state.snackbarText = payload
+    state.snackbarEnabled = true
+  },
+  SOCKET_GET_NW_RESULT: (
+    state, payload) => {
+    console.log('get nw', payload)
+    state.connections = payload
   }
 }
 
 const actions = {
-  fetchProfiles: ({
+  showSnackbar: ({
     state
   }, payload) => {
-
+    state.snackbarText = payload
+    state.snackbarEnabled = true
+  },
+  hideSnackbar: ({
+    state
+  }) => {
+    state.snackbarText = ''
+    state.snackbarEnabled = false
   }
 }
 

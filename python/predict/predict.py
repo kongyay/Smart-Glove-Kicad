@@ -18,15 +18,15 @@ class Model():
         self.my_model.load_weights(self.path_h5)
         return True
 
-    def predictFlex(self, data_test, time_send):
+    def predictFlex(self, data_test):
         data_test = np.asarray(data_test, dtype="float64")
         output = self.my_model.predict_classes(data_test)
-        return output, time_send
+        return output
 
-    def predictImu(self, data_test, time_send):
+    def predictImu(self, data_test):
         data_test = np.asarray(data_test, dtype="float64")
         output = self.my_model.predict_classes(data_test)
-        return output, time_send
+        return output
 
     """
     def predictTest(self):
@@ -69,3 +69,21 @@ class Model():
 
     def layer(self):
         print(self.my_model.summary())
+
+class NullModel():
+    def __init__(self):
+        return
+
+    def load(self):
+        return
+
+    def predictFlex(self, data_test, time_send):
+        return [1]
+
+    def predictImu(self, data_test, time_send):
+        return [1]
+
+    def predictTest(self):
+        return [1]
+
+        

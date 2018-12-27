@@ -4,6 +4,7 @@ import Flex from '@/components/page/Flex'
 import Predict from '@/components/page/Predict'
 import Gestures from '@/components/page/Gestures'
 import AllImu from '@/components/page/AllImu'
+import Settings from '@/components/page/Settings'
 Vue.use(Router)
 
 export default new Router({
@@ -27,5 +28,9 @@ export default new Router({
     path: '/predict',
     name: 'Predict',
     component: Predict
+  }, {
+    path: '/settings',
+    name: 'Settings',
+    component: Settings
   }]
 })

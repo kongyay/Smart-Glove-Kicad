@@ -12,7 +12,7 @@
       <v-list>
         <v-list-tile
           value="true"
-          v-for="(item, i) in items"
+          v-for="(item, i) in menus"
           :key="i"
           :to="{path: item.link}"
         >
@@ -39,16 +39,20 @@
     <v-footer :fixed="true" app>
       <span>CE KMITL&copy; 2018</span>
     </v-footer>
+
+    <snackbar></snackbar>
+
   </v-app>
 </template>
 
 <script>
 import UserCard from './components/UserCard.vue'
+import Snackbar from './components/Snackbar.vue'
 export default {
   data () {
     return {
       drawer: true,
-      items: [{
+      menus: [{
         icon: 'accessibility',
         title: 'Gestures',
         link: '/gestures'
@@ -56,11 +60,15 @@ export default {
         icon: 'supervised_user_circle',
         title: 'Live Data Visualization',
         link: '/allimu'
+      }, {
+        icon: 'settings',
+        title: 'Settings',
+        link: '/settings'
       }]
     }
   },
   components: {
-    UserCard
+    UserCard, Snackbar
   },
   name: 'App'
 }

@@ -46,7 +46,7 @@
     </v-layout>
 
     <v-layout row v-for='(val,i) in getLastPredictHistoryIMU' :key=i>
-      <v-btn block :large='i===0' :outline='i!=0' color="green" class='display-1'>{{gestureName[parseInt(val)-1]}}</v-btn>
+      <v-btn block :large='i===0' :outline='i!=0' color="green" class='display-1'>{{val}}</v-btn>
     </v-layout>
 
     <import-box></import-box>

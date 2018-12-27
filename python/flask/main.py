@@ -28,10 +28,13 @@ from oled import display
  
 # Import ML modules
 enableML = False
+sys.path.insert(0, '../predict')
 if enableML:
-    sys.path.insert(0, '../predict')
     from predict import Model
     model = Model()
+else:
+    from predict import NullModel
+    model = NullModel()
 
 # Import DB libs
 from models import Gesture, Pose, GestureAction, Action, Profile
@@ -50,6 +53,9 @@ header = '-([Glove 2 Gesture])-'
 # MUX Channels
 imu_mux = []
 main_mux_channel = 1
+
+# Last prediction
+last_poses = []
 
 # Boolean if model is loaded
 model_isloaded = True
@@ -92,24 +98,28 @@ def on_resample(gestures, size):
 
 @socketio.on('predict', namespace='/web')
 def on_predict(data):
-    if enableML:
-        global model
-        result, time_send = model.predictImu([data], None)    
+    global last_poses, model
+    result = model.predictImu([data], None)    
+    result = Pose.objects()[result[0]-1].name
+    print("Pose:",result)
+    last_poses.append(result)
+    display.write_row(text="Pos: "+">".join(last_poses),row=1)
+    
+    ga = checkGesture()
+    if ga:
+        display.write_row(text='Ges: '+ga.gesture.name,row=2)
     else:
-        result = [1]
-    print(result)
-    if display != None:
-        display.write_row(text=str(result[0]),row=1)
-    socketio.emit('predict_result', str(result[0]), namespace='/web')
+        display.write_row(text='Ges: None',row=2)
+    socketio.emit('predict_result', result, namespace='/web')
 
 @socketio.on('profiles', namespace='/web')
 def on_profile():
-    print("Profiles!")
+    print("Fetch Profiles!")
     socketio.emit('profiles_result',[i.to_json() for i in Profile.objects],namespace='/web')
 
 @socketio.on('choices', namespace='/web')
 def on_profile():
-    print("All Pose!")
+    print("Fetch All Pose!")
     socketio.emit('choices_result',[[i.to_json() for i in Pose.objects],[i.to_json() for i in Action.objects],[i.to_json() for i in Gesture.objects]],namespace='/web')
 
 @socketio.on('saveGesture', namespace='/web')
@@ -155,6 +165,21 @@ def on_removeGesture(profile_name,data):
             return
     print("Gesture not found!")
     socketio.emit('save_gesture_result','FAIL',namespace='/web')  
+
+@socketio.on('openAP', namespace='/web')
+def on_changeNwMode():
+    print("Change NW to AP")
+    nw.switch_con('g2g')
+
+@socketio.on('switchNw', namespace='/web')
+def on_switchNw(name,pw):
+    print("Switch NW to",name,pw)
+    nw.switch_con(name,pw)
+
+@socketio.on('getNw', namespace='/web')
+def on_scanNw():
+    print("Getting NW...")
+    socketio.emit('get_nw_result',nw.get_cons(),namespace='/web')  
 # _____________________________ Flask __________________________________
 
 @app.route('/')
@@ -164,7 +189,7 @@ def index():
 
 @app.route('/profiles')
 def get_gestures():
-    print("Profiles!")
+    print("Get Profiles!")
     pose_col = Pose._get_collection()
     ges_col = Gesture._get_collection()
 
@@ -188,6 +213,32 @@ def get_gestures():
 
 # _____________________________ Functions __________________________________
 
+def checkGesture():
+    global last_poses
+    profile = Profile.objects(name='Default').first()
+    re_l = last_poses[::-1]
+    for ga in profile.gestures_actions: # For each gesture
+        re_p = ga.gesture.poses[::-1]
+        ## If a number of last poses less than this gesture's pose, skip this gesture
+        if(len(re_l)<len(re_p)):
+            continue
+        ## Poses Comparison
+        match = True
+        for i in range(len(re_p)): # For each pose
+            # print(re_p[i].name,re_l)
+            if re_p[i].name == re_l[i]:
+                continue
+            else:
+                match = False
+                break
+        ## If match all pose = FOUND MATCHED GESTURE
+        if match == True:
+            last_poses = [] # Flush history
+            return ga
+
+    return None
+        
+        
 
 def interpolate(arr, fi):
     i = int(fi)
@@ -349,23 +400,9 @@ def loop_ipcheck():
     while True:
         old_ip = str(nw.ip)
         new_ip = str(nw.get_ip())
-        disp_text = new_ip + ('*' if old_ip != new_ip else '')
+        disp_text = "IP: " + new_ip + ('*' if old_ip != new_ip else '')
         display.write_row(text=(disp_text))
         time.sleep(10)
-
-def background_write_all(data):
-    display.write_all([header, ','.join(str(round(i)) for i in data[:3]),
-               ','.join(str(round(i))
-                        for i in data[3:6]) if inputSize > 3 else '---',
-               ','.join(str(round(i)) for i in data[6:9]) if inputSize > 6 else '---', "Good Luck"])
-
-
-def callback_predict(gt, *args, **kwargs):
-    """ Callback for prediction """
-    result, time_send = gt.wait()
-    if result[0] != 5:
-        print(time_send, result)
-
 
 def callback_load_model(gt, *args, **kwargs):
     global model_isloaded
@@ -397,9 +434,8 @@ def main():
 
     # Load keras model
     global model
-    if enableML:
-        model.load()
-        print(model.predictTest())
+    model.load()
+    print(model.predictTest())
 
     print('RUNNING')
     socketio.run(app, host='0.0.0.0', port='3000')
