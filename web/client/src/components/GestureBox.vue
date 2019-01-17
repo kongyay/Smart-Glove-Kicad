@@ -63,18 +63,35 @@
                   <v-flex xs12 v-if='action.name==="Display"'>
                     <v-textarea
                       label="Text"
-                      v-model="gestureAction.args[0]"
+                      v-model="gestureAction.args.text"
                     ></v-textarea>
                   </v-flex>
                   <v-flex xs12 v-else-if='action.name==="Http"'>
+                    <v-select
+                      label="Request Type"
+                      v-model="gestureAction.args.type"
+                      :items="['GET','POST']"
+                      chips
+                    ></v-select>
                     <v-text-field
                       label="URL"
-                      v-model="gestureAction.args[0]"
+                      v-model="gestureAction.args.url"
                     ></v-text-field>
                     <v-textarea
-                      label="Body"
-                      v-model="gestureAction.args[1]"
+                      label="Parameters"
+                      v-model="gestureAction.args.params"
                     ></v-textarea>
+                  </v-flex>
+                  <v-flex xs12 v-else-if='action.name==="Draw"'>
+                    <v-textarea
+                      label="Pixels"
+                      v-model="gestureAction.args.pixels"
+                    ></v-textarea>
+                    <table>
+                      <tr v-for="(v,i) in 64" :key="'r'+i">
+                        <td v-for="(v,j) in 128" :key="'c'+j" :class="pixels === 1 ? 'white':'black'">.</td>
+                      </tr>
+                    </table>
                   </v-flex>
                 </v-layout>
               </v-flex>
@@ -114,6 +131,9 @@ export default {
     },
     poses () {
       return this.gestureAction.gesture.poses
+    },
+    pixels () {
+      return this.gestureAction.args.pixels || Array.from(Array(64), () => new Array(128).fill(0))
     }
   },
   methods: {
@@ -157,5 +177,19 @@ export default {
 img {
   width: 50px;
   height: 50px;
+}
+table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+table, th, td {
+  border: 1px solid black;
+}
+.white {
+  background-color: white;
+}
+.black {
+  background-color: black;
 }
 </style>

@@ -48,7 +48,7 @@ const mutations = {
         poses: [state.choicePose[0]]
       },
       action: state.choiceAction[0],
-      args: ['', '']
+      args: {}
     }
     state.currentProfile.gestures_actions.push(newGA)
   },
@@ -91,7 +91,7 @@ const mutations = {
     state.snackbarEnabled = true
   },
   SOCKET_GET_NW_RESULT: (
-    state, payload) => {
+    state, [payload]) => {
     console.log('get nw', payload)
     state.connections = payload
   }
@@ -120,7 +120,8 @@ const getters = {
   getProfileList: state => state.profiles.map(d => d.name),
   getChoicePose: state => state.choicePose,
   getChoiceAction: state => state.choiceAction,
-  getChoiceGesture: state => state.choiceGesture
+  getChoiceGesture: state => state.choiceGesture,
+  getConnection: state => state.connections
 }
 
 const module = {

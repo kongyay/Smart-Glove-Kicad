@@ -4,12 +4,15 @@
       <gesture-box v-for="(ges,i) in getCurrentProfile.gestures_actions" :key=i :profile_name='getCurrentProfile.name' :gestureAction="ges"></gesture-box>
       <v-btn color='secondary' @click='addGesture'>Add</v-btn>
     </div>
+    <history-box></history-box>
   </v-container>
 </template>
 
 <script>
-import GestureBox from '../GestureBox.vue'
 import { mapGetters, mapMutations } from 'vuex'
+import GestureBox from '../GestureBox.vue'
+import HistoryBox from '../HistoryBox.vue'
+
 export default {
   data () {
     return {
@@ -30,7 +33,7 @@ export default {
     }
   },
   components: {
-    GestureBox
+    GestureBox, HistoryBox
   }
 }
 </script>

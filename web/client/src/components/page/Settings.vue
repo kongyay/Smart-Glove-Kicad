@@ -21,6 +21,7 @@
                 <h4>Wifi info</h4>
                 <v-text-field label="Wifi Name" v-model="wifiName" ref='wifiNameField' :rules="nameRules"></v-text-field>
                 <v-text-field label="Wifi Password" v-model="wifiPw" ref='wifiPwField' :rules="pwRules"></v-text-field>
+                <v-btn v-for="(v,i) in getConnection" :key=i @click="saveNw(v)">{{v}}</v-btn>
               </v-flex>
             </v-layout>
           </v-card-text>
@@ -47,16 +48,22 @@ export default {
     }
   },
   computed: {
-    ...mapGetters([])
+    ...mapGetters(['getConnection'])
   },
   methods: {
     ...mapMutations([]),
     ...mapActions([]),
-    saveNw () {
+    saveNw (name = this.wifiName) {
       if (this.mode === 'AP') {
-        this.$socket.emit('openAP')
+        let r = confirm(`Disconnect from network and open the access point?`)
+        if (r === true) {
+          this.$socket.emit('openAP')
+        }
       } else {
-        this.$socket.emit('switchNw', this.wifiName, this.wifiPw)
+        let r = confirm(`Connect to '${name}' network?`)
+        if (r === true) {
+          this.$socket.emit('switchNw', name, this.wifiPw)
+        }
       }
     }
 

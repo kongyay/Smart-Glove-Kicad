@@ -14,6 +14,7 @@ const state = {
   ],
   lastPredictDataStream_IMU: [],
   lastPredictHistory_IMU: [],
+  lastActionHistory_IMU: [],
   idlePoints: []
 }
 
@@ -117,6 +118,17 @@ const mutations = {
     // if (state.capturing_IMU) {
     //   state.recentDataStream_IMU = payload.msg
     // }
+  },
+  SOCKET_ACTION_RESULT: (
+    state, [payload]) => {
+    console.log('action', payload)
+    payload.result = JSON.parse(payload.result)
+    if (state.lastActionHistory_IMU.length < 5) {
+      state.lastActionHistory_IMU.unshift(payload)
+    } else {
+      state.lastActionHistory_IMU.pop()
+      state.lastActionHistory_IMU.unshift(payload)
+    }
   }
 }
 
@@ -128,10 +140,9 @@ const actions = {
       payload.push(payload.slice(-1)[0])
     }
     state.lastPredictDataStream_IMU = payload.slice()
-    console.log('pre', payload)
     // let mapped = payload.map(d => [...d[0].slice(0, 2), ...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), 0, 0, 0, 0])
     let mapped = payload.map(d => [...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), ...d[4].slice(0, 2), ...d[5].slice(0, 2)])
-    console.log('predict', mapped)
+    // console.log('predict', mapped)
     global.vm.$socket.emit('predict', mapped)
   }
 }
@@ -148,6 +159,7 @@ const getters = {
   isCapturingIMU: state => state.capturing_IMU,
   getLastPredictDataStreamIMU: state => state.lastPredictDataStream_IMU,
   getLastPredictHistoryIMU: state => state.lastPredictHistory_IMU,
+  getLastActionHistoryIMU: state => state.lastActionHistory_IMU,
   getIdlePoints: state => state.idlePoints
 }
 

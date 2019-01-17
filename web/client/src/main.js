@@ -12,7 +12,7 @@ import socketio from 'socket.io-client'
 import store from './store'
 import axios from 'axios'
 
-let host = (process.env.NODE_ENV === 'production') ? location.host : '192.168.1.89' // '169.254.1.1'
+let host = (process.env.NODE_ENV === 'production') ? location.host : '169.254.1.1'
 
 Vue.use(Vuetify)
 Vue.use(Vuex)

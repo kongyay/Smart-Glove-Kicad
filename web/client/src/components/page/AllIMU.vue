@@ -7,18 +7,18 @@
     <v-layout row wrap>
       <v-btn outline small round>MAIN</v-btn>
       <v-btn color="secondary" @click='goNone(true)'>NONE</v-btn>
-      <v-btn color="secondary" @click='goLive(true)' @click.right='goLive(false)'>LIVE</v-btn>
+      <v-btn color="secondary" @click.left='goLive(true)' @click.right='goLive(false)'>LIVE</v-btn>
     </v-layout>
 
     <v-layout row wrap>
       <v-btn outline small round>BG</v-btn>
       <v-btn color="secondary" @click='goNone(false)'>NONE</v-btn>
-      <v-btn color="secondary" @click='goRaw(false)' @click.right='goRaw(true)'>RAW</v-btn>
+      <v-btn color="secondary" @click.left='goRaw(false)' @click.right='goRaw(true)'>RAW</v-btn>
 
       <v-badge v-for='(value,i) in getCapturedDataStreamIMU' :key='i' overlap color="red">
         <v-btn slot="badge" @click='removeName(i)' flat icon dark small>X</v-btn>
 
-        <v-btn @click='goName(i)' @dblclick="rename(i)" @click.right='goName(i,true)' :class="{'green': selectedName===i}">
+        <v-btn @click.left='goName(i)' @dblclick="rename(i)" @click.right='goName(i,true)' :class="{'green': selectedName===i}">
           {{i}}
         </v-btn>
       </v-badge>
@@ -45,9 +45,7 @@
       <v-btn color="error" @click='clearCapture()'>Clear</v-btn>
     </v-layout>
 
-    <v-layout row v-for='(val,i) in getLastPredictHistoryIMU' :key=i>
-      <v-btn block :large='i===0' :outline='i!=0' color="green" class='display-1'>{{val}}</v-btn>
-    </v-layout>
+    <history-box></history-box>
 
     <import-box></import-box>
     <export-box></export-box>
@@ -60,6 +58,7 @@ import {mapGetters, mapMutations, mapActions} from 'vuex'
 import LiveDataSheet from '../LiveDataSheet.vue'
 import ExportBox from '../ExportBox.vue'
 import ImportBox from '../ImportBox.vue'
+import HistoryBox from '../HistoryBox.vue'
 
 export default {
   data () {
@@ -80,7 +79,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getDataAllIMU', 'getDataRawIMU', 'isCapturingIMU', 'getCaptureSize', 'getRecentDataStreamIMU', 'getRecentDataStreamSizeIMU', 'getCapturedDataStreamIMU', 'getLastPredictDataStreamIMU', 'getLastPredictHistoryIMU'])
+    ...mapGetters(['getDataAllIMU', 'getDataRawIMU', 'isCapturingIMU', 'getCaptureSize', 'getRecentDataStreamIMU', 'getRecentDataStreamSizeIMU', 'getCapturedDataStreamIMU', 'getLastPredictDataStreamIMU'])
   },
   methods: {
     ...mapMutations(['START_CAPTURE_IMU', 'STOP_CAPTURE_IMU', 'SAVE_CAPTURE_IMU', 'CLEAR_CAPTURE_IMU', 'REMOVE_CAPTURE_IMU', 'RENAME_CAPTURE_IMU']),
@@ -175,7 +174,7 @@ export default {
       }
     }
   },
-  components: {LiveDataSheet, ExportBox, ImportBox}
+  components: {LiveDataSheet, ExportBox, ImportBox, HistoryBox}
 }
 </script>
 
