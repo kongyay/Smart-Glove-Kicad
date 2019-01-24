@@ -4,6 +4,7 @@ const state = {
   capturedDataStream_IMU: {},
   recentDataStream_IMU: [],
   capturing_IMU: false,
+  captureSize: 20,
   headNames_IMU: [
     'มือ',
     'โป้ง',
@@ -68,7 +69,7 @@ const mutations = {
   },
   // socket connection
   SOCKET_LIVE_IMU: (
-    state, [payload]) => {
+    state, payload) => {
     if (state.liveDataStream_IMU.length < 20) {
       state.liveDataStream_IMU.push(payload.msg)
       state.liveRawStream_IMU.push(payload.ori)
@@ -157,6 +158,7 @@ const getters = {
   getRecentDataStreamIMU: state => state.recentDataStream_IMU,
   getRecentDataStreamSizeIMU: state => state.recentDataStream_IMU.length,
   isCapturingIMU: state => state.capturing_IMU,
+  getCaptureSize: state => state.captureSize,
   getLastPredictDataStreamIMU: state => state.lastPredictDataStream_IMU,
   getLastPredictHistoryIMU: state => state.lastPredictHistory_IMU,
   getLastActionHistoryIMU: state => state.lastActionHistory_IMU,

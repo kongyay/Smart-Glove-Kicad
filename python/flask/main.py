@@ -122,49 +122,77 @@ def on_profile():
     print("Fetch All Pose!")
     socketio.emit('choices_result',[[i.to_json() for i in Pose.objects],[i.to_json() for i in Action.objects],[i.to_json() for i in Gesture.objects]],namespace='/web')
 
-@socketio.on('saveGesture', namespace='/web')
-def on_saveGesture(profile_name,data):
-    print("Save Gesture Request!",profile_name,data)
+@socketio.on('saveGA', namespace='/web')
+def on_saveGA(profile_name,old_name,data):
+    print("Save GA Request!",profile_name,data)
+    profile = Profile.objects(name=profile_name).first()
+    gesture = Gesture.objects(name=data['gesture']['name']).first()
+    action = Action.objects(name=data['action']['name']).first()
+    for i in range(len(profile.gestures_actions)):
+        if old_name == profile.gestures_actions[i].gesture.name:
+            profile.gestures_actions[i].gesture = gesture
+            profile.gestures_actions[i].action = action
+            profile.gestures_actions[i].args = data['args']
+            print(profile.gestures_actions[i].args,data['args'])
+            profile.save()
+            socketio.emit('save_ga_result','SAVED',namespace='/web')
+            return
+
+    print("New GA!")
+    profile.gestures_actions.append(GestureAction(gesture=gesture,action=action,args=data['args']))
+    profile.save()
+    socketio.emit('save_ga_result','NEW',namespace='/web')
+
+@socketio.on('removeGA', namespace='/web')
+def on_removeGA(profile_name,name):
+    print("Remove GA Request!",name)
     profile = Profile.objects(name=profile_name).first()
     for i in range(len(profile.gestures_actions)):
-        if data['gesture']['name'] == profile.gestures_actions[i].gesture.name:
-            gesture = Gesture.objects(name=data['gesture']['name']).first()
-            poses = []
-            for np in data['gesture']['poses']:
-                poses.append(Pose.objects(name=np['name']).first())
-                
-            gesture.poses = poses
-            gesture.save()
-            profile.gestures_actions[i].action = Action.objects(name=data['action']['name']).first()
-            profile.gestures_actions[i].args = data['args']
+        if name == profile.gestures_actions[i].gesture.name:
+            del profile.gestures_actions[i]
             profile.save()
-            socketio.emit('save_gesture_result','SAVED',namespace='/web')
+            socketio.emit('remove_ga_result','REMOVED',namespace='/web')
             return
+
+    print("Remove GA Error!")
+    socketio.emit('remove_ga_result','REMOVE ERROR',namespace='/web')
+    
+
+@socketio.on('saveGesture', namespace='/web')
+def on_saveGesture(data):
+    print("Save Gesture Request!",data)
+
+    gestures = Gesture.objects(name=data['name'])
+    if(len(gestures)>0):
+        gesture = gestures.first()
+        poses = []
+        for np in data['poses']:
+            poses.append(Pose.objects(name=np['name']).first())
+            
+        gesture.poses = poses
+        gesture.save()
+        socketio.emit('save_gesture_result','SAVED',namespace='/web')
+        return
 
     print("New Gesture!")
     poses = []
-    for np in data['gesture']['poses']:
+    for np in data['poses']:
         poses.append(Pose.objects(name=np['name']).first())
-    gesture = Gesture(name=data['gesture']['name'],poses=poses)
+    gesture = Gesture(name=data['name'],poses=poses)
     gesture.save()
-    action = Action.objects(name=data['action']['name']).first()
-    profile.gestures_actions.append(GestureAction(gesture=gesture,action=action,args=data['args']))
-    profile.save()
     socketio.emit('save_gesture_result','NEW',namespace='/web')
 
 @socketio.on('removeGesture', namespace='/web')
-def on_removeGesture(profile_name,data):
-    print("Remove Gesture Request!",profile_name,data)
-    profile = Profile.objects(name=profile_name).first()
-    for i in range(len(profile.gestures_actions)):
-        if data['gesture']['name'] == profile.gestures_actions[i].gesture.name:
-            gesture = Gesture.objects(name=data['gesture']['name']).first()
-            gesture.delete()
-            
-            socketio.emit('remove_gesture_result','OK',namespace='/web')
-            return
-    print("Gesture not found!")
-    socketio.emit('save_gesture_result','FAIL',namespace='/web')  
+def on_removeGesture(data):
+    print("Remove Gesture Request!",data)
+    
+    gestures = Gesture.objects(name=data)
+    if(len(gestures)>0):
+        gestures.first().delete()
+        socketio.emit('save_gesture_result','SUCCESS',namespace='/web')  
+    else:
+        print("Gesture not found!")
+        socketio.emit('save_gesture_result','FAIL',namespace='/web')  
 
 @socketio.on('openAP', namespace='/web')
 def on_changeNwMode():
@@ -192,7 +220,6 @@ def get_gestures():
     print("Get Profiles!")
     pose_col = Pose._get_collection()
     ges_col = Gesture._get_collection()
-
 
     # pose1 = Pose.objects(name='Close').first()
     # pose2 = Pose.objects(name='Open').first()
@@ -326,7 +353,7 @@ def loop_input():
                 print("Switch channel fail #", cur_imu.get_channel())
 
             data[i],starttime[i] = cur_imu.get_all(starttime[i])
-            data[i] = [round(data[i][j],3) for j in range(3)]
+            data[i] = [round(data[i][j],6) for j in range(6)]
             data_ori[i] = data[i][:]
 
 
@@ -361,35 +388,35 @@ def loop_input():
             #         # # if not all axes in a finger in idle, set idle = False
             #         idle_flags[i] = False
 
-            #print("Channel#", cur_imu.get_name(), data[i])
+            # print("Channel#", cur_imu.get_name(), data[i])
 
         # # Export Data through socket/oled
         # # fill the missing imu
-        data = data + [dummy_imu() for i in range(len(data), 6)]
+        data = data + [dummy_accgyro() for i in range(len(data), 6)]
 
         # # Check for changes
-        if not all(idle_flags):
-            datas_moving.append(data)
-            socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
-            pose_flag = True
-        else:
-            # # if idle
-            datas_moving = []
-            idle_count += 1
-            # # if pose changed
-            socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
-            if pose_flag and idle_count >= idle_min:
-                socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':True}, namespace='/web')
-                data_last_idle = data
-                pose_flag = False
-                idle_count = 0
+        # if not all(idle_flags):
+        #     datas_moving.append(data)
+        #     socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
+        #     pose_flag = True
+        # else:
+        #     # # if idle
+        #     datas_moving = []
+        #     idle_count += 1
+        #     # # if pose changed
+        #     socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
+        #     if pose_flag and idle_count >= idle_min:
+        #         socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':True}, namespace='/web')
+        #         data_last_idle = data
+        #         pose_flag = False
+        #         idle_count = 0
 
         # # Keep data_back in size of sampleRate
         if len(datas) > sampleRate:
             datas = datas[1:]
         datas.append(data)
 
-        # socketio.emit('live_imu', {'msg': data,'ori': data_ori}, namespace='/web')
+        socketio.emit('live_imu', {'msg': data,'ori': data_ori}, namespace='/web')
         
 
         # Prepare for the next iteration

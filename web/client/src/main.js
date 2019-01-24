@@ -11,6 +11,7 @@ import VueSocketio from 'vue-socket.io'
 import socketio from 'socket.io-client'
 import store from './store'
 import axios from 'axios'
+import draggable from 'vuedraggable'
 
 let host = (process.env.NODE_ENV === 'production') ? location.host : '169.254.1.1'
 
@@ -18,6 +19,7 @@ Vue.use(Vuetify)
 Vue.use(Vuex)
 Vue.use(VueSocketio, socketio(`http://${host}:3000/web`), store)
 axios.get(`http://${host}:3000/api`).then(response => console.log('Server Called...', response))
+Vue.component('draggable', draggable)
 
 Vue.config.productionTip = false
 

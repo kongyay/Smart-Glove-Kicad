@@ -29,7 +29,7 @@
                   <v-select v-if="getChoicePose.length>0"
                     :value="pose.name"
                     @change="editPose($event,i)"
-                    :items="getChoicePose.map(c=>c.name)"
+                    :items="getNoDupePose(i).map(c=>c.name)"
                     label="Pose"
                   ></v-select>
                 </v-card-title>
@@ -138,11 +138,20 @@ export default {
   },
   methods: {
     ...mapMutations(['REMOVE_GESTURE']),
+    getNoDupePose (i) {
+      return this.getChoicePose.filter(p => !(i > 0 && p.name === this.poses[i - 1].name) && !(i < this.poses.length - 1 && p.name === this.poses[i + 1].name))
+    },
     goPose (name) {
       this.currentPose = name
     },
     editPose (name, i) {
-      this.gestureAction.gesture.poses[i] = this.getChoicePose.find(c => c.name === name)
+      if (i > 0 && name === this.poses[i - 1].name) {
+        alert(`Pose ${i} can't be the same as ${i - 1} (${name})`)
+      } else if (i < this.poses.length - 1 && name === this.poses[i + 1].name) {
+        alert(`Pose ${i} can't be the same as ${i + 1} (${name})`)
+      } else {
+        this.gestureAction.gesture.poses[i] = this.getChoicePose.find(c => c.name === name)
+      }
       this.$forceUpdate()
     },
     editAction (name) {
@@ -161,7 +170,7 @@ export default {
       }
     },
     addPose () {
-      this.gestureAction.gesture.poses.push(this.getChoicePose[0])
+      this.gestureAction.gesture.poses.push(this.getNoDupePose(this.poses.length)[0] || this.getChoicePose[0])
     },
     removePose (i) {
       this.gestureAction.gesture.poses.splice(i, 1)

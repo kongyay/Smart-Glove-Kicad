@@ -45,10 +45,10 @@ class IMU(object):
         try:
             # [roll,pitch,yaw] = self.imu.getKalmanAngles(deltaT)
             # [roll,pitch,yaw] = self.imu.getAccelerometerAngles()
-            [roll,pitch,yaw] = self.imu.getComplementaryAngles(deltaT,self.name)
+            # [roll,pitch,yaw] = self.imu.getComplementaryAngles(deltaT,self.name)
             # [magX,magY,magZ] = self.mag.getMagnetometerRaw()
-
-            dataTuple = [roll,pitch,yaw]
+            dataTuple = self.imu.getAccelerometerRaw() + self.imu.getGyroRotationRates()  
+            # dataTuple = [roll,pitch,yaw]
             # print("Name:",self.name)
             # print("DeltaT:",deltaT)
             # print("Accel:", kalman)

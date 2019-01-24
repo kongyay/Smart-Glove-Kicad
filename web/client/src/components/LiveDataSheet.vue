@@ -4,9 +4,11 @@
       <v-checkbox v-for="(x,no) in 6" :key='"cb"+no' :label="getHeadNamesIMU[no]" v-model="show[no]"></v-checkbox>
     </v-layout>
     <div v-for="(x,no) in 6" :key='"ch"+no'>
-      <v-layout row v-if='show[no]'>
-        <live-data-chart v-for="(axis,x) in [0,1,2]" :key='x' :dataset="getDataSet(no,axis)" :minVal="(no>0)? -180:-180" :maxVal="(no>0)? 360:360" color="#FF0000"></live-data-chart>
+      <v-layout row wrap v-if='show[no]'>
+        <h4>{{getHeadNamesIMU[no]}}</h4>
+        <live-data-chart v-for="(axis,x) in 6" :key='x' :dataset="getDataSet(no,x)" :minVal="(no>0)? -10000:-10000" :maxVal="(no>0)? 10000:10000" color="#FF0000"></live-data-chart>
       </v-layout>
+      <v-divider></v-divider>
     </div>
   </v-layout>
 
@@ -40,13 +42,13 @@ export default {
     getDataSet (no, axis) {
       return [
         {
-          label: 'Main',
+          label: 'Main' + no,
           backgroundColor: '#FF0000',
           data: this.getDataOne(no, axis),
           pointBackgroundColor: this.getIdlePoints
         },
         {
-          label: 'BG',
+          label: 'BG' + no,
           backgroundColor: '#0000FF',
           data: this.getDataBG(no, axis)
         }

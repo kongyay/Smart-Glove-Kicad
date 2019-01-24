@@ -49,7 +49,7 @@ export default {
     return {
       panelOpen: false,
       includeSensor: [true, true, true, true, true, true],
-      includeAxis: [true, true, true],
+      includeAxis: [true, true, true, true, true, true],
       format: 'CSV',
       includeGestures: []
     }
@@ -77,7 +77,7 @@ export default {
           for (let i = this.includeAxis.length; i > 0; i--) {
             row = this.includeAxis[i] ? row : row.map(a => this.includeAxis[i] ? a : a.slice(0, i).concat(a.slice(i + 1)))
           }
-          row = row.map(r => r.slice(0, 3))
+          row = row.map(r => r.slice(0, 6))
           csvContent += [...[...row], gesture.split('.')[0]].join(',') + '\n'
         }
       }

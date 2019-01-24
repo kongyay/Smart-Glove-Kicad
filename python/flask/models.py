@@ -1,6 +1,6 @@
 import json
 from mongoengine import Document, EmbeddedDocument, connect
-from mongoengine import StringField, ReferenceField, ListField, URLField, EmbeddedDocumentField
+from mongoengine import StringField, ReferenceField, ListField, URLField, EmbeddedDocumentField, DictField
 
 connect('g2g')
 
@@ -40,15 +40,15 @@ class Action(Document):
 class GestureAction(EmbeddedDocument):
     gesture = ReferenceField(Gesture, required=True)
     action = ReferenceField(Action, required=True)
-    args = ListField(StringField(max_length=500))
+    args = DictField()
 
     def to_json(self):
         jsonObj = {}
         jsonObj["gesture"] = self.gesture.to_json()
         jsonObj["action"] = self.action.to_json()
-        jsonObj["args"] = []
-        for a in self.args:
-            jsonObj["args"].append(a)
+        jsonObj["args"] = self.args
+        # for key, value in self.args.items():
+        #     jsonObj["args"].append(a)
         return jsonObj
 
 class Profile(Document):

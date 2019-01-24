@@ -1,13 +1,13 @@
 {
   "folders": [
     {
-      "path": "D:\\Work\\Glove2Gesture\\python"
-    },
-    {
       "path": "web\\client"
     },
     {
       "path": "web\\server"
+    },
+    {
+      "path": "python"
     }
   ],
   "settings": {}
