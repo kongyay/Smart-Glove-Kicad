@@ -1,0 +1,5 @@
+(fp_lib_table
+  (lib (name nanopi_duo)(type KiCad)(uri ${KIPRJMOD}/nanopi_duo)(options "")(descr ""))
+  (lib (name lib)(type KiCad)(uri ${KIPRJMOD}/nanopi_duo/lib)(options "")(descr ""))
+  (lib (name myLib)(type KiCad)(uri ${KIPRJMOD}/myLib.pretty)(options "")(descr ""))
+)
