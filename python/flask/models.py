@@ -1,23 +1,25 @@
 import json
 from mongoengine import Document, EmbeddedDocument, connect
-from mongoengine import StringField, ReferenceField, ListField, URLField, EmbeddedDocumentField, DictField
+from mongoengine import SequenceField, StringField, ReferenceField, ListField, URLField, EmbeddedDocumentField, DictField
 
 connect('g2g')
 
 
 class Pose(Document):
     name = StringField(max_length=60, required=True, unique=True)
-    pic = URLField(max_length=500)
+    pic = URLField(max_length=500, default="")
+    index = SequenceField()
 
     def to_json(self):
         jsonObj = {}
         jsonObj["name"] = self.name
         jsonObj["pic"] = self.pic or ""
+        jsonObj["index"] = self.index or 0
         return jsonObj
 
 class Gesture(Document):
     name = StringField(max_length=60, required=True, unique=True)
-    poses = ListField(ReferenceField(Pose), required=True)
+    poses = ListField(ReferenceField(Pose), required=True, default=[])
 
     def to_json(self):
         jsonObj = {}
@@ -29,7 +31,7 @@ class Gesture(Document):
 
 class Action(Document):
     name = StringField(max_length=60, required=True, unique=True)
-    pic = URLField(max_length=500)
+    pic = URLField(max_length=500, default="")
     
     def to_json(self):
         jsonObj = {}
@@ -40,7 +42,7 @@ class Action(Document):
 class GestureAction(EmbeddedDocument):
     gesture = ReferenceField(Gesture, required=True)
     action = ReferenceField(Action, required=True)
-    args = DictField()
+    args = DictField(default={})
 
     def to_json(self):
         jsonObj = {}
@@ -53,7 +55,7 @@ class GestureAction(EmbeddedDocument):
 
 class Profile(Document):
     name = StringField(max_length=60, required=True, unique=True)
-    gestures_actions = ListField(EmbeddedDocumentField(GestureAction), required=True)
+    gestures_actions = ListField(EmbeddedDocumentField(GestureAction), default=[])
 
     def to_json(self):
         jsonObj = {}

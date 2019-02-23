@@ -6,7 +6,7 @@
     <div v-for="(x,no) in 6" :key='"ch"+no'>
       <v-layout row wrap v-if='show[no]'>
         <h4>{{getHeadNamesIMU[no]}}</h4>
-        <live-data-chart v-for="(axis,x) in 6" :key='x' :dataset="getDataSet(no,x)" :minVal="(no>0)? -10000:-10000" :maxVal="(no>0)? 10000:10000" color="#FF0000"></live-data-chart>
+        <live-data-chart v-for="(axis,x) in 6" :key='x' :dataset="getDataSet(no,x)" :minVal="(axis<3)? -10000:-50" :maxVal="(axis<3)? 10000:50" color="#FF0000"></live-data-chart>
       </v-layout>
       <v-divider></v-divider>
     </div>

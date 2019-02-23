@@ -15,7 +15,10 @@
         ></v-select>
 
         <v-card-actions>
-          <v-btn flat color="red">Logout</v-btn>
+          <v-layout column>
+            <v-flex><v-btn outline block color="primary"  @click='createProfile'>+ Create new profile</v-btn></v-flex>
+            <v-flex v-if='getCurrentProfile.name !== "Default"'><v-btn flat block color="red" @click='deleteProfile'>- Delete profile</v-btn></v-flex>
+          </v-layout>
         </v-card-actions>
       </v-card>
 </template>
@@ -41,7 +44,20 @@ export default {
     }
   },
   methods: {
-    ...mapMutations(['CHANGE_PROFILE'])
+    ...mapMutations(['CHANGE_PROFILE', 'CREATE_PROFILE', 'DELETE_PROFILE']),
+    createProfile () {
+      let newname = prompt('Please enter profile name:', '')
+      if (newname !== null && newname !== '') {
+        this.CREATE_PROFILE(newname)
+      }
+    },
+    deleteProfile () {
+      if (confirm(`Are you sure you want to remove "${this.getCurrentProfile.name}" profile ?`)) {
+        this.DELETE_PROFILE(this.getCurrentProfile.name)
+      } else {
+        // Do nothing!
+      }
+    }
   }
 }
 </script>

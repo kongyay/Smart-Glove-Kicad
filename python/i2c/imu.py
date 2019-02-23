@@ -58,8 +58,30 @@ class IMU(object):
             except (Exception):
                 print("Re-enable fail #", self.get_channel())
             
-            dataTuple = [0,0,0]
+            dataTuple = [0,0,0, 0, 0, 0]
         
 
         return dataTuple, new_start
         # return [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+
+class NullIMU(object):
+    def __init__(self, channel=0, name=None):
+        self.channel = channel
+        self.name = name if name != None else channel
+
+    def get_name(self):
+        return self.name
+
+    def get_channel(self):
+        return self.channel
+
+    def get_all(self, start):
+        stop = datetime.now() 
+        deltaT = (stop-start).microseconds/1000000.0
+        new_start = stop
+
+        dataTuple = [0,0,0, 0, 0, 0]
+        
+
+        return dataTuple, new_start

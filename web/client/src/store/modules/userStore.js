@@ -24,20 +24,37 @@ const mutations = {
     state.isConnected = false
     state.isLoaded = false
   },
-  ADD_PROFILE: (
+  CREATE_PROFILE: (
     state, payload) => {
-    console.log('ADD Profile...')
-    state.profiles.push(payload)
+    console.log('CREATE Profile...')
+    if (state.profiles.map(p => p.name).indexOf(payload) > -1) {
+      return alert(payload + ' profile is already exist')
+    }
+    let newP = {
+      name: payload,
+      gestures_actions: []
+    }
+    state.profiles.push(newP)
+    state.currentProfile = state.profiles[state.profiles.length - 1]
+    global.vm.$socket.emit('createProfile', payload)
   },
-  REMOVE_PROFILE: (
+  DELETE_PROFILE: (
     state, payload) => {
-    console.log('REMOVE Profile...')
-    // REMOVE HERE
+    console.log('delete Profile...')
+    let pi = state.profiles.map(p => p.name).indexOf(payload)
+    if (pi > -1 && payload !== 'Default') {
+      state.profiles.splice(pi, 1)
+      state.currentProfile = state.profiles[0]
+      global.vm.$socket.emit('removeProfile', payload)
+    } else {
+      console.log('Cant delete profile', payload)
+    }
   },
   CHANGE_PROFILE: (
     state, payload) => {
     console.log('CHANGE Profile...')
     state.currentProfile = state.profiles.find(p => p.name === payload)
+    global.vm.$socket.emit('switchProfile', payload)
   },
   ADD_GESTURE: (
     state, payload) => {
@@ -97,10 +114,12 @@ const mutations = {
   SOCKET_PROFILES_RESULT: (
     state, payload) => {
     console.log('FETCH Profile...', payload)
+    let cp = payload[0]
+    payload.shift()
     state.profiles = payload
     state.isLoaded = true
     if (state.currentProfile.name === 'NONE') {
-      state.currentProfile = state.profiles.find(p => p.name === 'Default')
+      state.currentProfile = state.profiles.find(p => p.name === cp)
     }
   },
   SOCKET_CHOICES_RESULT: (
@@ -110,15 +129,9 @@ const mutations = {
     state.choiceAction = payload[1]
     state.choiceGesture = payload[2]
   },
-  SOCKET_SAVE_GESTURE_RESULT: (
+  SOCKET_NOTIFY: (
     state, payload) => {
-    console.log('Save Gesture Result:', payload)
-    state.snackbarText = payload
-    state.snackbarEnabled = true
-  },
-  SOCKET_REMOVE_GESTURE_RESULT: (
-    state, payload) => {
-    console.log('Remove Gesture Result:', payload)
+    console.log('Notify:', payload)
     state.snackbarText = payload
     state.snackbarEnabled = true
   },

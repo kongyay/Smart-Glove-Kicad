@@ -1,11 +1,11 @@
 # Import standard libs
 import sys
 import time
-import datetime
+from datetime import datetime
 import random
 import json
 import numpy as np
-from os import getpid
+from os import system
 
 # Import threading libs
 import eventlet
@@ -22,25 +22,27 @@ socketio = SocketIO(app)
 
 # Import I2C modules
 sys.path.insert(0, '../i2c')
-from imu import IMU
+from imu import IMU,NullIMU
 from mux import SW
 from oled import display
  
-# Import ML modules
-enableML = False
+# Import ML modules 
+enableML = True
 sys.path.insert(0, '../predict')
 if enableML:
-    from predict import Model
+    from predict import Model 
     model = Model()
 else:
+    print("=== NOT USING TENSORFLOW ===")
     from predict import NullModel
     model = NullModel()
 
 # Import DB libs
 from models import Gesture, Pose, GestureAction, Action, Profile
 
-# Import NW
+# Import NW/Action
 from network import nw
+from action import actionMaker
 
 # VARIABLES
 # smallest possible difference
@@ -49,16 +51,20 @@ EPSILON = sys.float_info.epsilon
 connectedClients = 0
 # OLED Header
 header = '-([Glove 2 Gesture])-'
-
 # MUX Channels
 imu_mux = []
 main_mux_channel = 1
-
+imu_ok = [False,False,False,False,False,False]
 # Last prediction
 last_poses = []
-
+stack_poses = []
 # Boolean if model is loaded
 model_isloaded = True
+# Current Profile
+cur_profile = "Default"
+poses_pool = []
+# Size of sample/second
+sampleRate = 10
 
 # _____________________________ SOCKET.IO Handlers __________________________________
 
@@ -97,17 +103,27 @@ def on_resample(gestures, size):
     socketio.emit('resampled', gestures, namespace='/web')
 
 @socketio.on('predict', namespace='/web')
-def on_predict(data):
-    global last_poses, model
-    result = model.predictImu([data], None)    
-    result = Pose.objects()[result[0]-1].name
+def on_predict(data,add=True):
+    global last_poses,stack_poses, model, poses_pool
+    print("Predicting...")
+    if len(data)<sampleRate:
+        return
+    data = [x[0]+x[1]+x[2]+x[3]+x[4]+x[5] if(len(x)==6) else x for x in data]
+    result = model.predictImu(data,poses_pool,len(Pose.objects))
+    result = Pose.objects(index = int(result)).first().name
+    # # If same pose, ignore...
+    #if (result not in poses_pool) or (len(last_poses)>0 and result == last_poses[-1]):
+        #return
     print("Pose:",result)
     last_poses.append(result)
-    display.write_row(text="Pos: "+">".join(last_poses),row=1)
+    if add:
+        stack_poses.append(result)
+    display.write_row(text="Pos: "+">".join(stack_poses[-5:]),row=1)
     
     ga = checkGesture()
     if ga:
-        display.write_row(text='Ges: '+ga.gesture.name,row=2)
+        display.write_row(text='Ges: ' + ga.gesture.name,row=2)
+        actionMaker.do(type=ga['action']['name'],args=ga['args'])
     else:
         display.write_row(text='Ges: None',row=2)
     socketio.emit('predict_result', result, namespace='/web')
@@ -115,7 +131,7 @@ def on_predict(data):
 @socketio.on('profiles', namespace='/web')
 def on_profile():
     print("Fetch Profiles!")
-    socketio.emit('profiles_result',[i.to_json() for i in Profile.objects],namespace='/web')
+    socketio.emit('profiles_result',[cur_profile]+[i.to_json() for i in Profile.objects],namespace='/web')
 
 @socketio.on('choices', namespace='/web')
 def on_profile():
@@ -124,7 +140,7 @@ def on_profile():
 
 @socketio.on('saveGA', namespace='/web')
 def on_saveGA(profile_name,old_name,data):
-    print("Save GA Request!",profile_name,data)
+    print("Save GA Request!",profile_name)
     profile = Profile.objects(name=profile_name).first()
     gesture = Gesture.objects(name=data['gesture']['name']).first()
     action = Action.objects(name=data['action']['name']).first()
@@ -133,15 +149,15 @@ def on_saveGA(profile_name,old_name,data):
             profile.gestures_actions[i].gesture = gesture
             profile.gestures_actions[i].action = action
             profile.gestures_actions[i].args = data['args']
-            print(profile.gestures_actions[i].args,data['args'])
+            # print(profile.gestures_actions[i].args,data['args'])
             profile.save()
-            socketio.emit('save_ga_result','SAVED',namespace='/web')
+            socketio.emit('notify','SAVED',namespace='/web')
             return
 
     print("New GA!")
     profile.gestures_actions.append(GestureAction(gesture=gesture,action=action,args=data['args']))
     profile.save()
-    socketio.emit('save_ga_result','NEW',namespace='/web')
+    socketio.emit('notify','NEW',namespace='/web')
 
 @socketio.on('removeGA', namespace='/web')
 def on_removeGA(profile_name,name):
@@ -151,11 +167,11 @@ def on_removeGA(profile_name,name):
         if name == profile.gestures_actions[i].gesture.name:
             del profile.gestures_actions[i]
             profile.save()
-            socketio.emit('remove_ga_result','REMOVED',namespace='/web')
+            socketio.emit('notify','REMOVED',namespace='/web')
             return
 
     print("Remove GA Error!")
-    socketio.emit('remove_ga_result','REMOVE ERROR',namespace='/web')
+    socketio.emit('notify','REMOVE ERROR',namespace='/web')
     
 
 @socketio.on('saveGesture', namespace='/web')
@@ -171,7 +187,7 @@ def on_saveGesture(data):
             
         gesture.poses = poses
         gesture.save()
-        socketio.emit('save_gesture_result','SAVED',namespace='/web')
+        socketio.emit('notify','SAVED',namespace='/web')
         return
 
     print("New Gesture!")
@@ -180,7 +196,7 @@ def on_saveGesture(data):
         poses.append(Pose.objects(name=np['name']).first())
     gesture = Gesture(name=data['name'],poses=poses)
     gesture.save()
-    socketio.emit('save_gesture_result','NEW',namespace='/web')
+    socketio.emit('notify','NEW',namespace='/web')
 
 @socketio.on('removeGesture', namespace='/web')
 def on_removeGesture(data):
@@ -189,15 +205,48 @@ def on_removeGesture(data):
     gestures = Gesture.objects(name=data)
     if(len(gestures)>0):
         gestures.first().delete()
-        socketio.emit('save_gesture_result','SUCCESS',namespace='/web')  
+        socketio.emit('notify','SUCCESS',namespace='/web')  
     else:
         print("Gesture not found!")
-        socketio.emit('save_gesture_result','FAIL',namespace='/web')  
+        socketio.emit('notify','FAIL',namespace='/web')  
+
+@socketio.on('createProfile', namespace='/web')
+def on_createProfile(profile_name):
+    print("Create profile Request!",profile_name)
+    
+    profile = Profile(name=profile_name)
+    profile.save()
+    socketio.emit('notify','Created',namespace='/web')
+
+@socketio.on('removeProfile', namespace='/web')
+def on_removeProfile(profile_name):
+    global cur_profile
+    print("Remove profile Request!",profile_name)
+    profile = Profile.objects(name=profile_name)
+    if(len(profile)>0):
+        profile.first().delete()
+        cur_profile = 'Default'
+        socketio.emit('notify','Removed',namespace='/web')  
+    else:
+        print("Profile not found!")
+        socketio.emit('notify','Remove fail',namespace='/web')  
+
+@socketio.on('switchProfile', namespace='/web')
+def on_switchProfile(profile_name):
+    global cur_profile,poses_pool
+    print("Switch Profile to",profile_name)
+    cur_profile = profile_name
+    poses_pool = set([])
+    pf = Profile.objects(name=profile_name).first()
+    for ga in pf['gestures_actions']:
+        for p in ga['gesture']['poses']:
+            poses_pool.add(p['index'])
+    print('New pose pool:',poses_pool)
 
 @socketio.on('openAP', namespace='/web')
 def on_changeNwMode():
     print("Change NW to AP")
-    nw.switch_con('g2g')
+    nw.switch_con('g2g','')
 
 @socketio.on('switchNw', namespace='/web')
 def on_switchNw(name,pw):
@@ -208,6 +257,14 @@ def on_switchNw(name,pw):
 def on_scanNw():
     print("Getting NW...")
     socketio.emit('get_nw_result',nw.get_cons(),namespace='/web')  
+
+@socketio.on('setTime', namespace='/web')
+def on_setTime(time):
+    print("Setting Time...",time)
+    system('date -s %s' % time)
+    display.show_clock()
+    socketio.emit('notify',"Date,Time changed!",namespace='/web')  
+    
 # _____________________________ Flask __________________________________
 
 @app.route('/')
@@ -224,9 +281,7 @@ def get_gestures():
     # pose1 = Pose.objects(name='Close').first()
     # pose2 = Pose.objects(name='Open').first()
     # gesture1 = Gesture(name="CloseOpen", poses=[pose1,pose2])
-    # print(getpid(),gesture1)
     # gesture2 = Gesture(name="OpenClose", poses=[pose2,pose1])
-    # print(getpid(),gesture2)
     # gesture1.save()
     # gesture2.save()
 
@@ -241,9 +296,9 @@ def get_gestures():
 # _____________________________ Functions __________________________________
 
 def checkGesture():
-    global last_poses
-    profile = Profile.objects(name='Default').first()
-    re_l = last_poses[::-1]
+    global stack_poses,cur_profile
+    profile = Profile.objects(name=cur_profile).first()
+    re_l = stack_poses[::-1]
     for ga in profile.gestures_actions: # For each gesture
         re_p = ga.gesture.poses[::-1]
         ## If a number of last poses less than this gesture's pose, skip this gesture
@@ -260,7 +315,7 @@ def checkGesture():
                 break
         ## If match all pose = FOUND MATCHED GESTURE
         if match == True:
-            last_poses = [] # Flush history
+            stack_poses = [] # Flush history
             return ga
 
     return None
@@ -295,17 +350,8 @@ def angle_diff(unit1, unit2):
 def dummy_imu():
     return [0 for i in range(9)]
 
-
 def dummy_accgyro():
     return [0 for i in range(6)]
-
-
-def dummy_mag():
-    return [0 for i in range(3)]
-
-
-def dummy_flex():
-    return [0 for i in range(5)]
 
 # _____________________________ THREAD/LOOP/BG ____________________________
 
@@ -313,8 +359,6 @@ def dummy_flex():
 def loop_input():
     print("Starting input loop...")
     
-    # Size of sample/second
-    sampleRate = 20
     # Period of capturing each sample
     samplePeriod = 1.0/sampleRate
     # Input size 3:Ac, 6:AcGy, 9:AGM, 12:AGMF
@@ -326,11 +370,15 @@ def loop_input():
     # Moving data since start moving to stop moving
     datas_moving = []
     # Threshold which one of each value considered as start moving
-    moving_threshold = 30
+    rotate_threshold = 10
     # Minimum number of same data in sequence that considered as idle
     idle_min = 20
     # Counter for idle_min
     idle_count = 0
+    # Lap for each moving predict
+    moving_lap = 3
+    # Counter for moving_lap
+    moving_count = 0
     # Flag to check for each finger to move
     idle_flags = [True for i in imu_mux]
     # Flag to check if idle pose changed
@@ -339,18 +387,18 @@ def loop_input():
 
     record = False
     first = True
-    
+
     while True:
         data = [[] for i in imu_mux]
         data_ori = [[] for i in imu_mux]
-        starttime = [datetime.datetime.now() for i in imu_mux]
+        starttime = [datetime.now() for i in imu_mux]
         for i, cur_imu in enumerate(imu_mux):
             # Switch mux channel & Read data
             try:
                 SW.channel(cur_imu.get_channel())
             except (Exception):
-                data[i] = dummy_imu()
-                print("Switch channel fail #", cur_imu.get_channel())
+                data[i] = dummy_accgyro()
+                # print("Switch channel fail #", cur_imu.get_channel())
 
             data[i],starttime[i] = cur_imu.get_all(starttime[i])
             data[i] = [round(data[i][j],6) for j in range(6)]
@@ -380,56 +428,65 @@ def loop_input():
 
 
             # # Smooth out
-            # if len(datas) > 0:
-            #     if all(abs(angle_diff(data[i][j],datas[-1][i][j])) < moving_threshold for j in range(3)):
-            #         data[i] = datas[-1][i]
-            #         idle_flags[i] = True
-            #     else:
-            #         # # if not all axes in a finger in idle, set idle = False
-            #         idle_flags[i] = False
+            if len(datas) > 0:
+                if all(abs(data[i][j]-datas[-1][i][j]) < rotate_threshold for j in range(3,6)):
+                    data[i] = datas[-1][i]
+                    idle_flags[i] = True
+                else:
+                    # # if not all axes in a finger in idle, set idle = False
+                    idle_flags[i] = False
 
             # print("Channel#", cur_imu.get_name(), data[i])
 
-        # # Export Data through socket/oled
+        ## ======================= END OF ALL FINGER =======================================
+
         # # fill the missing imu
         data = data + [dummy_accgyro() for i in range(len(data), 6)]
 
         # # Check for changes
-        # if not all(idle_flags):
-        #     datas_moving.append(data)
-        #     socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
-        #     pose_flag = True
-        # else:
-        #     # # if idle
-        #     datas_moving = []
-        #     idle_count += 1
-        #     # # if pose changed
-        #     socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':False}, namespace='/web')
-        #     if pose_flag and idle_count >= idle_min:
-        #         socketio.emit('live_imu', {'msg': data,'ori': data_ori,'idle':True}, namespace='/web')
-        #         data_last_idle = data
-        #         pose_flag = False
-        #         idle_count = 0
-
+        if not all(idle_flags):
+            # # Moving
+            moving_count += 1
+            if moving_count % moving_lap == 0:
+                # on_predict(datas,add=False)
+                moving_count = 3
+                idle_count = 0
+        else:
+            # # if idle
+            if idle_count == 0:
+                on_predict(datas)
+                print(".......Idle......")
+            if idle_count < 5:
+                idle_count += 1
+                # on_predict(datas,add=False)
+    
         # # Keep data_back in size of sampleRate
-        if len(datas) > sampleRate:
+        if len(datas) >= sampleRate:
             datas = datas[1:]
         datas.append(data)
-
+        # print(data[i])
         socketio.emit('live_imu', {'msg': data,'ori': data_ori}, namespace='/web')
         
 
+
         # Prepare for the next iteration
-        # print("==================DELAY %f ==================" %   samplePeriod)
+        # print("================== DELAY %f ==================" %   samplePeriod)
         time.sleep(samplePeriod)
 
 def loop_ipcheck():
     while True:
         old_ip = str(nw.ip)
         new_ip = str(nw.get_ip())
-        disp_text = "IP: " + new_ip + ('*' if old_ip != new_ip else '')
-        display.write_row(text=(disp_text))
+        if old_ip != new_ip:
+            display.set_info("ip",new_ip)
+            display.show_clock()
         time.sleep(10)
+
+def loop_clockcheck():
+    while True:
+        display.set_info("dt",datetime.now())
+        display.show_clock()
+        time.sleep(60) 
 
 def callback_load_model(gt, *args, **kwargs):
     global model_isloaded
@@ -443,26 +500,33 @@ def callback_load_model(gt, *args, **kwargs):
 def main():
     
     # Init IMU MUX
-    global display,imu_mux
-    mux_channels = [main_mux_channel,7, 6, 5, 4, 3]
+    global display,imu_mux,actionMaker
+    mux_channels = [main_mux_channel, 3,4,5,6,7]
     for i,channel in enumerate(mux_channels):
         try:
             SW.channel(channel)
             print("Init IMU #", channel)
             imu_mux.append(IMU(channel,i))
-        except OSError:
-            mux_channels.append(channel)
-            print("Error Init Channel #", channel)
+        except OSError as e:
+            # # Retry init 
+            # mux_channels.append(channel)
+            imu_mux.append(NullIMU(channel,i))
+            print("Error Init Channel #", channel,e)
             
     thread_input = eventlet.spawn_n(loop_input)
 
-    # Init Network
+    # Init Check loop
     thread_ipchange = eventlet.spawn_n(loop_ipcheck)
+    thread_clockchange = eventlet.spawn_n(loop_clockcheck)
 
     # Load keras model
     global model
     model.load()
     print(model.predictTest())
+
+    # Set action display
+    actionMaker.setDisplay(display)
+    on_switchProfile('Default')
 
     print('RUNNING')
     socketio.run(app, host='0.0.0.0', port='3000')

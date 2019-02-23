@@ -37,7 +37,7 @@
         <v-layout>
         <v-expansion-panel v-model='argOpen' expand>
           <v-expansion-panel-content>
-            <div slot="header">Args</div>
+            <div slot="header">Parameters</div>
             <v-card>
               <v-card-text>
                     <v-flex xs12 v-if='ga.action.name==="Display"'>
@@ -61,7 +61,12 @@
                         @change="save()"
                       ></v-text-field>
                       <v-textarea
-                        label="Parameters"
+                        label="Headers"
+                        v-model="ga.args.headers"
+                        @change="save()"
+                      ></v-textarea>
+                      <v-textarea
+                        label="Request parameters"
                         v-model="ga.args.params"
                         @change="save()"
                       ></v-textarea>
@@ -74,9 +79,18 @@
                       ></v-textarea>
                       <table>
                         <tr v-for="(v,i) in 64" :key="'r'+i">
-                          <td v-for="(v,j) in 128" :key="'c'+j" :class="pixels === 1 ? 'white':'black'">.</td>
+                          <td v-for="(v,j) in 128" :key="'c'+j" :class="ga.args.pixels.charAt(i*128+j) === '1' ? 'white':'black'" @click='shiftPixel(i*128+j)'></td>
                         </tr>
                       </table>
+                    </v-flex>
+                    <v-flex xs12 v-else-if='ga.action.name==="Screen"'>
+                      <v-select
+                        label="Screen to show"
+                        v-model="ga.args.screen"
+                        :items="['Clock']"
+                        @change="save()"
+                        chips
+                      ></v-select>
                     </v-flex>
                 </v-card-text>
 
@@ -147,6 +161,15 @@ export default {
       } else {
         // Do nothing!
       }
+    },
+    shiftPixel (i) {
+      console.log(i)
+      let size = 64 * 128
+      if (this.ga.args.pixels.length < size) {
+        this.ga.args.pixels += new Array(size - this.ga.args.pixels.length).join('0')
+      }
+      this.ga.args.pixels = this.ga.args.pixels.substring(0, i) + (this.ga.args.pixels.charAt(i) === '1' ? '0' : '1') + this.ga.args.pixels.substring(i + 1)
+      this.save()
     }
   },
   created () {
@@ -170,6 +193,14 @@ table {
 }
 table, th, td {
   border: 1px solid black;
+}
+tr {
+  height: 20px;
+}
+
+td {
+  min-width: 20px;
+  box-sizing: border-box;
 }
 .white {
   background-color: white;

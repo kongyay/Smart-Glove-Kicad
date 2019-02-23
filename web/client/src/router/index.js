@@ -2,7 +2,7 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import Flex from '@/components/page/Flex'
 import Predict from '@/components/page/Predict'
-import Gestures from '@/components/page/GesturesDrag'
+import Gestures from '@/components/page/Gestures'
 import AllImu from '@/components/page/AllImu'
 import Settings from '@/components/page/Settings'
 Vue.use(Router)

@@ -96,7 +96,7 @@ const mutations = {
     console.log(payload)
   },
   SOCKET_PREDICT_RESULT: (
-    state, [payload]) => {
+    state, payload) => {
     console.log('PREDICTED', payload)
     if (state.lastPredictHistory_IMU.length < 5) {
       state.lastPredictHistory_IMU.unshift(payload)
@@ -142,7 +142,7 @@ const actions = {
     }
     state.lastPredictDataStream_IMU = payload.slice()
     // let mapped = payload.map(d => [...d[0].slice(0, 2), ...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), 0, 0, 0, 0])
-    let mapped = payload.map(d => [...d[1].slice(0, 2), ...d[2].slice(0, 2), ...d[3].slice(0, 2), ...d[4].slice(0, 2), ...d[5].slice(0, 2)])
+    let mapped = payload
     // console.log('predict', mapped)
     global.vm.$socket.emit('predict', mapped)
   }

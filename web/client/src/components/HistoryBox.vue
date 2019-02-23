@@ -51,7 +51,7 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['getLastPredictDataStreamIMU', 'getLastPredictHistoryIMU', 'getLastActionHistoryIMU'])
+    ...mapGetters(['getLastPredictDataStreamIMU', 'getLastPredictHistoryIMU', 'getLastActionHistoryIMU', 'getChoicePose'])
   },
   methods: {
   }

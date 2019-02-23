@@ -2,6 +2,7 @@
   <v-container fluid grid-list-md>
     <v-layout column justify-space-around>
       <v-flex>
+        <!-- NETWORK -->
         <v-card>
           <v-card-title primary-title><div class="headline">Network Settings</div></v-card-title>
           <v-card-text class="grey lighten-5">
@@ -29,6 +30,24 @@
             <v-btn color='green'  @click='saveNw()'>Apply</v-btn>
           </v-card-actions>
         </v-card>
+        <!-- TIME -->
+        <v-card>
+          <v-card-title primary-title><div class="headline">Date/Time Settings</div></v-card-title>
+          <v-card-text class="grey lighten-5">
+            <v-layout column align-start justify-space-around>
+              <v-flex>
+                Date: {{datetime.toLocaleDateString()}}
+              </v-flex>
+              <v-flex>
+                Time: {{datetime.toLocaleTimeString()}}
+              </v-flex>
+            </v-layout>
+          </v-card-text>
+          <v-card-actions>
+            <v-btn color='green'  @click='setTime()'>Sync</v-btn>
+          </v-card-actions>
+        </v-card>
+
       </v-flex>
 
     </v-layout>
@@ -44,7 +63,10 @@ export default {
       wifiName: '@Glove2Gesture is here!',
       wifiPw: '12345678',
       nameRules: [v => !!v || 'Name is required'],
-      pwRules: [v => v.length >= 8 || 'Password must contain 8 or more characters, now: ' + v.length]
+      pwRules: [v => v.length >= 8 || 'Password must contain 8 or more characters, now: ' + v.length],
+      datetime: new Date(),
+      interval: null
+
     }
   },
   computed: {
@@ -65,6 +87,9 @@ export default {
           this.$socket.emit('switchNw', name, this.wifiPw)
         }
       }
+    },
+    setTime () {
+      this.$socket.emit('setTime', this.datetime.toLocaleString())
     }
 
   },
@@ -73,6 +98,10 @@ export default {
   },
   mounted () {
     this.$socket.emit('getNw')
+    this.interval = setInterval(() => { this.datetime = new Date() }, 1000)
+  },
+  beforeDestroy () {
+    clearInterval(this.interval)
   },
   components: {}
 }
