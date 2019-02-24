@@ -49,7 +49,7 @@ Wire Wire Line
 Wire Wire Line
 	4550 3850 4800 3850
 $Comp
-L nanopi:nanopi U1
+L G2g-rescue:nanopi-nanopi U1
 U 1 1 5C711050
 P 5150 3250
 F 0 "U1" H 5150 4015 50  0000 C CNN
@@ -105,7 +105,7 @@ Wire Wire Line
 Wire Wire Line
 	4450 4050 4650 4050
 $Comp
-L nanopi:mux U2
+L G2g-rescue:mux-nanopi U2
 U 1 1 5C71D95E
 P 4850 6300
 F 0 "U2" H 4825 6925 50  0000 C CNN

@@ -50,11 +50,11 @@ X Pin_4 4 -200 -200 150 R 50 50 1 1 P
 ENDDRAW
 ENDDEF
 #
-# nanopi_mux
+# G2g-rescue_mux-nanopi
 #
-DEF nanopi_mux U 0 40 Y Y 1 F N
+DEF G2g-rescue_mux-nanopi U 0 40 Y Y 1 F N
 F0 "U" 0 550 50 H V C CNN
-F1 "nanopi_mux" 0 550 50 H V C CNN
+F1 "G2g-rescue_mux-nanopi" 0 550 50 H V C CNN
 F2 "" 0 550 50 H I C CNN
 F3 "" 0 550 50 H I C CNN
 DRAW
@@ -86,11 +86,11 @@ X SD0 9 -350 -400 100 R 50 50 1 1 I
 ENDDRAW
 ENDDEF
 #
-# nanopi_nanopi
+# G2g-rescue_nanopi-nanopi
 #
-DEF nanopi_nanopi U 0 40 Y Y 1 F N
+DEF G2g-rescue_nanopi-nanopi U 0 40 Y Y 1 F N
 F0 "U" 0 700 50 H V C CNN
-F1 "nanopi_nanopi" 0 700 50 H V C CNN
+F1 "G2g-rescue_nanopi-nanopi" 0 700 50 H V C CNN
 F2 "" 0 700 50 H I C CNN
 F3 "" 0 700 50 H I C CNN
 DRAW
